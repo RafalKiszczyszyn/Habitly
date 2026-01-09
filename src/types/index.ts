@@ -8,6 +8,7 @@ export interface Habit {
   color: string;
   createdAt: string;
   archived: boolean;
+  unit?: string; // Optional unit name (e.g., "doses", "glasses", "minutes")
 }
 
 export interface HabitEntry {
@@ -15,6 +16,7 @@ export interface HabitEntry {
   date: string; // YYYY-MM-DD format
   occurred: boolean;
   note?: string;
+  amount?: number; // Optional amount when habit has a unit
 }
 
 export interface HabitData {

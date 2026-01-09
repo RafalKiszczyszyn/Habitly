@@ -22,6 +22,7 @@ export function ManageHabitsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitType, setNewHabitType] = useState<'positive' | 'negative'>('positive');
+  const [newHabitUnit, setNewHabitUnit] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -83,11 +84,13 @@ export function ManageHabitsPage() {
       color: COLORS[habits.length % COLORS.length],
       createdAt: new Date().toISOString(),
       archived: false,
+      unit: newHabitUnit.trim() || undefined,
     };
 
     addHabit(habit);
     setNewHabitName('');
     setNewHabitType('positive');
+    setNewHabitUnit('');
     setShowAddForm(false);
     await syncToCloud();
   };
@@ -98,7 +101,7 @@ export function ManageHabitsPage() {
     await syncToCloud();
   };
 
-  const handleEditHabit = async (habit: Habit, updates: { name: string; type: 'positive' | 'negative'; createdAt: string }) => {
+  const handleEditHabit = async (habit: Habit, updates: { name: string; type: 'positive' | 'negative'; createdAt: string; unit?: string }) => {
     updateHabit(habit.id, updates);
     setEditingHabit(null);
     await syncToCloud();
@@ -171,6 +174,11 @@ export function ManageHabitsPage() {
                     >
                       {habit.type === 'positive' ? '+' : '−'}
                     </span>
+                    {habit.unit && (
+                      <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        {habit.unit}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                     Created {new Date(habit.createdAt).toLocaleDateString()}
@@ -261,6 +269,23 @@ export function ManageHabitsPage() {
                 : 'Negative: Track habits you want to avoid (e.g., Smoking, Junk food)'}
             </p>
 
+            {/* Unit Input */}
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                Unit (optional)
+              </label>
+              <input
+                type="text"
+                value={newHabitUnit}
+                onChange={(e) => setNewHabitUnit(e.target.value)}
+                placeholder="e.g., glasses, minutes, doses..."
+                className="w-full px-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              />
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                If set, you can track how many units per occurrence
+              </p>
+            </div>
+
             <div className="flex gap-2 mt-3">
               <Button onClick={handleAddHabit} disabled={!newHabitName.trim() || isSaving}>
                 Add Habit
@@ -323,7 +348,7 @@ export function ManageHabitsPage() {
 
 interface EditHabitModalProps {
   habit: Habit;
-  onSave: (habit: Habit, updates: { name: string; type: 'positive' | 'negative'; createdAt: string }) => void;
+  onSave: (habit: Habit, updates: { name: string; type: 'positive' | 'negative'; createdAt: string; unit?: string }) => void;
   onClose: () => void;
   isSaving: boolean;
 }
@@ -332,6 +357,7 @@ function EditHabitModal({ habit, onSave, onClose, isSaving }: EditHabitModalProp
   const [name, setName] = useState(habit.name);
   const [type, setType] = useState<'positive' | 'negative'>(habit.type);
   const [createdAt, setCreatedAt] = useState(habit.createdAt.split('T')[0]);
+  const [unit, setUnit] = useState(habit.unit || '');
 
   const handleSubmit = () => {
     if (!name.trim()) return;
@@ -339,6 +365,7 @@ function EditHabitModal({ habit, onSave, onClose, isSaving }: EditHabitModalProp
       name: name.trim(),
       type,
       createdAt: new Date(createdAt + 'T00:00:00').toISOString(),
+      unit: unit.trim() || undefined,
     });
   };
 
@@ -405,6 +432,22 @@ function EditHabitModal({ habit, onSave, onClose, isSaving }: EditHabitModalProp
             />
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
               Days before this date will show as grey in the calendar
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+              Unit (optional)
+            </label>
+            <input
+              type="text"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder="e.g., glasses, minutes, doses..."
+              className="w-full px-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            />
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              If set, you can track how many units per occurrence
             </p>
           </div>
         </div>

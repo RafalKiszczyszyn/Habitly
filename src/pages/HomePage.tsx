@@ -39,9 +39,11 @@ function parseDate(dateStr: string | null): Date {
 export function HomePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { habits, entries, setHabitData, toggleEntry, getHabitData, isLoading, setLoading } =
+  const { habits, entries, setHabitData, toggleEntry, setEntry, getHabitData, isLoading, setLoading } =
     useHabitStore();
   const { accessToken, clearAuth } = useAuthStore();
+  const [amountInputHabitId, setAmountInputHabitId] = useState<string | null>(null);
+  const [amountInputValue, setAmountInputValue] = useState('');
 
   // Read date from URL or default to today
   const dateParam = searchParams.get('date');
@@ -119,11 +121,40 @@ export function HomePage() {
     setSearchParams({});
   };
 
+  // Get entry for a habit on selected date
+  const getEntry = (habitId: string) => {
+    return entries.find(
+      (e) => e.habitId === habitId && e.date === selectedDateStr
+    );
+  };
+
   // Check if an entry exists for selected date and occurred is true
   const hasOccurred = (habitId: string): boolean => {
-    return entries.some(
-      (e) => e.habitId === habitId && e.date === selectedDateStr && e.occurred
-    );
+    const entry = getEntry(habitId);
+    return entry?.occurred ?? false;
+  };
+
+  // Get amount for a habit on selected date
+  const getAmount = (habitId: string): number | undefined => {
+    const entry = getEntry(habitId);
+    return entry?.amount;
+  };
+
+  // Handle click for habits with units - open amount input
+  const handleUnitHabitClick = (habitId: string) => {
+    const entry = getEntry(habitId);
+    setAmountInputHabitId(habitId);
+    setAmountInputValue(entry?.amount?.toString() || '');
+  };
+
+  // Save amount and close input
+  const handleSaveAmount = async (occurred: boolean) => {
+    if (!amountInputHabitId) return;
+    const amount = amountInputValue ? parseFloat(amountInputValue) : undefined;
+    setEntry(amountInputHabitId, selectedDateStr, occurred, amount);
+    setAmountInputHabitId(null);
+    setAmountInputValue('');
+    await syncToCloud();
   };
 
   // Determine if a habit is "successful" on selected date
@@ -255,6 +286,8 @@ export function HomePage() {
             activeHabits.map((habit) => {
               const occurred = hasOccurred(habit.id);
               const success = isSuccess(habit);
+              const amount = getAmount(habit.id);
+              const hasUnit = !!habit.unit;
 
               // Determine checkbox color based on habit type and state
               // Positive + occurred = green (success)
@@ -268,11 +301,15 @@ export function HomePage() {
                   : 'bg-red-500 border-red-500';
               }
 
+              const handleClick = hasUnit
+                ? () => handleUnitHabitClick(habit.id)
+                : () => handleToggle(habit.id);
+
               return (
                 <Card key={habit.id} className="flex items-center gap-4">
                   <div
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${checkboxStyle}`}
-                    onClick={() => handleToggle(habit.id)}
+                    onClick={handleClick}
                   >
                     {occurred && (
                       <svg
@@ -301,7 +338,7 @@ export function HomePage() {
                   </div>
                   <div
                     className="flex-1 cursor-pointer"
-                    onClick={() => handleToggle(habit.id)}
+                    onClick={handleClick}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -322,6 +359,11 @@ export function HomePage() {
                       >
                         {habit.type === 'positive' ? '+' : '−'}
                       </span>
+                      {hasUnit && occurred && amount !== undefined && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          {amount} {habit.unit}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <button
@@ -361,6 +403,67 @@ export function HomePage() {
         >
           Manage Your Habits
         </Button>
+
+        {/* Amount Input Modal */}
+        {amountInputHabitId && (() => {
+          const habit = habits.find(h => h.id === amountInputHabitId);
+          if (!habit) return null;
+          const entry = getEntry(amountInputHabitId);
+
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <Card className="max-w-sm w-full">
+                <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
+                  {habit.name}
+                </h3>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                    How many {habit.unit}?
+                  </label>
+                  <input
+                    type="number"
+                    value={amountInputValue}
+                    onChange={(e) => setAmountInputValue(e.target.value)}
+                    placeholder="Enter amount..."
+                    min="0"
+                    step="any"
+                    className="w-full px-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    className="flex-1"
+                    onClick={() => {
+                      setAmountInputHabitId(null);
+                      setAmountInputValue('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  {entry?.occurred && (
+                    <Button
+                      variant="ghost"
+                      className="flex-1"
+                      onClick={() => handleSaveAmount(false)}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  <Button
+                    className="flex-1"
+                    onClick={() => handleSaveAmount(true)}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          );
+        })()}
       </div>
     </AppLayout>
   );

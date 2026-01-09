@@ -11,6 +11,7 @@ interface HabitState {
   updateHabit: (id: string, updates: Partial<Habit>) => void;
   deleteHabit: (id: string) => void;
   toggleEntry: (habitId: string, date: string) => void;
+  setEntry: (habitId: string, date: string, occurred: boolean, amount?: number) => void;
   setLoading: (loading: boolean) => void;
   getHabitData: () => HabitData;
 }
@@ -64,6 +65,30 @@ export const useHabitStore = create<HabitState>((set, get) => ({
         entries: [
           ...state.entries,
           { habitId, date, occurred: true },
+        ],
+      };
+    }),
+
+  setEntry: (habitId, date, occurred, amount) =>
+    set((state) => {
+      const existing = state.entries.find(
+        (e) => e.habitId === habitId && e.date === date
+      );
+
+      if (existing) {
+        return {
+          entries: state.entries.map((e) =>
+            e.habitId === habitId && e.date === date
+              ? { ...e, occurred, amount }
+              : e
+          ),
+        };
+      }
+
+      return {
+        entries: [
+          ...state.entries,
+          { habitId, date, occurred, amount },
         ],
       };
     }),
