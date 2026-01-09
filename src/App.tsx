@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { CalendarPage } from './pages/CalendarPage';
+import { ManageHabitsPage } from './pages/ManageHabitsPage';
 import { useAuthStore } from './stores/auth-store';
 import { initializeGoogleAuth } from './lib/google-auth';
 
@@ -44,6 +45,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/manage"
+        element={
+          <ProtectedRoute>
+            <ManageHabitsPage />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }
@@ -79,7 +88,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename="/Habitly">
         <AppRoutes />
       </BrowserRouter>
     </QueryClientProvider>

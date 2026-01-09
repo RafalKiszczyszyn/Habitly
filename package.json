@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://RafalKiszczyszyn.github.io/habitly",
+  "homepage": "https://rafalkiszczyszyn.github.io/habitly",
   "scripts": {
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
