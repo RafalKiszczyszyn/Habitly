@@ -4,7 +4,7 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { Button, Card } from '../components/ui';
 import { useHabitStore } from '../stores/habit-store';
 import { useAuthStore } from '../stores/auth-store';
-import { loadHabitData, saveHabitData, getDefaultHabitData, migrateHabitData } from '../lib/google-drive';
+import { loadHabitData, saveHabitData, getDefaultHabitData, migrateHabitData, TokenExpiredError } from '../lib/google-drive';
 import { formatDate } from '../lib/calendar';
 import type { Habit } from '../types';
 
@@ -18,7 +18,7 @@ export function ManageHabitsPage() {
   const navigate = useNavigate();
   const { habits, setHabitData, addHabit, updateHabit, deleteHabit, getHabitData, isLoading, setLoading } =
     useHabitStore();
-  const { accessToken } = useAuthStore();
+  const { accessToken, clearAuth } = useAuthStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitType, setNewHabitType] = useState<'positive' | 'negative'>('positive');
@@ -39,6 +39,11 @@ export function ManageHabitsPage() {
           setHabitData(getDefaultHabitData());
         }
       } catch (error) {
+        if (error instanceof TokenExpiredError) {
+          clearAuth();
+          navigate('/login?expired=true');
+          return;
+        }
         console.error('Failed to load data:', error);
         setHabitData(getDefaultHabitData());
       } finally {
@@ -47,7 +52,7 @@ export function ManageHabitsPage() {
     }
 
     loadData();
-  }, [accessToken, setHabitData, setLoading]);
+  }, [accessToken, setHabitData, setLoading, clearAuth, navigate]);
 
   const syncToCloud = async () => {
     if (!accessToken) return;
@@ -56,6 +61,11 @@ export function ManageHabitsPage() {
     try {
       await saveHabitData(accessToken, getHabitData());
     } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        clearAuth();
+        navigate('/login?expired=true');
+        return;
+      }
       console.error('Failed to save data:', error);
     } finally {
       setIsSaving(false);

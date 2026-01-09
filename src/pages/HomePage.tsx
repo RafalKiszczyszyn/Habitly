@@ -4,7 +4,7 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { Button, Card } from '../components/ui';
 import { useHabitStore } from '../stores/habit-store';
 import { useAuthStore } from '../stores/auth-store';
-import { loadHabitData, saveHabitData, getDefaultHabitData, migrateHabitData } from '../lib/google-drive';
+import { loadHabitData, saveHabitData, getDefaultHabitData, migrateHabitData, TokenExpiredError } from '../lib/google-drive';
 import { formatDate } from '../lib/calendar';
 
 function getDateDisplay(date: Date): string {
@@ -41,7 +41,7 @@ export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { habits, entries, setHabitData, toggleEntry, getHabitData, isLoading, setLoading } =
     useHabitStore();
-  const { accessToken } = useAuthStore();
+  const { accessToken, clearAuth } = useAuthStore();
 
   // Read date from URL or default to today
   const dateParam = searchParams.get('date');
@@ -62,6 +62,11 @@ export function HomePage() {
           setHabitData(getDefaultHabitData());
         }
       } catch (error) {
+        if (error instanceof TokenExpiredError) {
+          clearAuth();
+          navigate('/login?expired=true');
+          return;
+        }
         console.error('Failed to load data:', error);
         setHabitData(getDefaultHabitData());
       } finally {
@@ -70,7 +75,7 @@ export function HomePage() {
     }
 
     loadData();
-  }, [accessToken, setHabitData, setLoading]);
+  }, [accessToken, setHabitData, setLoading, clearAuth, navigate]);
 
   const syncToCloud = async () => {
     if (!accessToken) return;
@@ -78,6 +83,11 @@ export function HomePage() {
     try {
       await saveHabitData(accessToken, getHabitData());
     } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        clearAuth();
+        navigate('/login?expired=true');
+        return;
+      }
       console.error('Failed to save data:', error);
     }
   };

@@ -4,6 +4,22 @@ const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const DATA_FILE_NAME = 'habitly-data.json';
 
+export class TokenExpiredError extends Error {
+  constructor() {
+    super('Session expired');
+    this.name = 'TokenExpiredError';
+  }
+}
+
+function checkResponse(response: Response, errorMessage: string): void {
+  if (response.status === 401) {
+    throw new TokenExpiredError();
+  }
+  if (!response.ok) {
+    throw new Error(errorMessage);
+  }
+}
+
 async function findDataFile(accessToken: string): Promise<string | null> {
   const response = await fetch(
     `${DRIVE_API_URL}/files?spaces=appDataFolder&q=name='${DATA_FILE_NAME}'&fields=files(id,name)`,
@@ -14,9 +30,7 @@ async function findDataFile(accessToken: string): Promise<string | null> {
     }
   );
 
-  if (!response.ok) {
-    throw new Error('Failed to search for data file');
-  }
+  checkResponse(response, 'Failed to search for data file');
 
   const data = await response.json();
   return data.files?.[0]?.id || null;
@@ -35,9 +49,7 @@ export async function loadHabitData(accessToken: string): Promise<Record<string,
     },
   });
 
-  if (!response.ok) {
-    throw new Error('Failed to load habit data');
-  }
+  checkResponse(response, 'Failed to load habit data');
 
   return response.json();
 }
@@ -58,9 +70,7 @@ export async function saveHabitData(accessToken: string, data: HabitData): Promi
       body,
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to update habit data');
-    }
+    checkResponse(response, 'Failed to update habit data');
   } else {
     // Create new file
     const metadata = {
@@ -80,9 +90,7 @@ export async function saveHabitData(accessToken: string, data: HabitData): Promi
       body: form,
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to create habit data file');
-    }
+    checkResponse(response, 'Failed to create habit data file');
   }
 }
 

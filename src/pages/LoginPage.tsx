@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Card } from '../components/ui';
 import { signIn, fetchUserInfo } from '../lib/google-auth';
 import { useAuthStore } from '../stores/auth-store';
@@ -8,7 +8,9 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const sessionExpired = searchParams.get('expired') === 'true';
 
   const handleSignIn = async () => {
     setIsLoading(true);
@@ -37,6 +39,12 @@ export function LoginPage() {
             Track your habits, build better routines
           </p>
         </div>
+
+        {sessionExpired && (
+          <div className="mb-4 p-3 bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-lg text-sm">
+            Your session has expired. Please sign in again.
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg text-sm">
