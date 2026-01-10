@@ -10,18 +10,32 @@ import { initializeGoogleAuth } from './lib/google-auth';
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+// Check if this is first time use (no local data)
+function isFirstTimeUser(): boolean {
+  const storage = localStorage.getItem('habitly-storage');
+  if (!storage) return true;
+  try {
+    const data = JSON.parse(storage);
+    // Check if state exists and has been initialized
+    return !data.state || (data.state.habits.length === 0 && data.state.entries.length === 0);
+  } catch {
+    return true;
   }
-
-  return <>{children}</>;
 }
 
 function AppRoutes() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [isFirstTime] = useState(() => isFirstTimeUser());
+
+  // First time users must login first
+  if (isFirstTime && !isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage isFirstTime />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>
@@ -29,30 +43,9 @@ function AppRoutes() {
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
       />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/calendar/:habitId"
-        element={
-          <ProtectedRoute>
-            <CalendarPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/manage"
-        element={
-          <ProtectedRoute>
-            <ManageHabitsPage />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/calendar/:habitId" element={<CalendarPage />} />
+      <Route path="/manage" element={<ManageHabitsPage />} />
     </Routes>
   );
 }

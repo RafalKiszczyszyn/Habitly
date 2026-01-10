@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Button, Card } from '../components/ui';
 import { useHabitStore } from '../stores/habit-store';
-import { useAuthStore } from '../stores/auth-store';
-import { loadHabitData, saveHabitData, getDefaultHabitData, migrateHabitData, TokenExpiredError } from '../lib/google-drive';
 import { formatDate } from '../lib/calendar';
 import type { Habit } from '../types';
 
@@ -16,64 +14,16 @@ function generateId(): string {
 
 export function ManageHabitsPage() {
   const navigate = useNavigate();
-  const { habits, setHabitData, addHabit, updateHabit, deleteHabit, getHabitData, isLoading, setLoading } =
+  const { habits, addHabit, updateHabit, deleteHabit } =
     useHabitStore();
-  const { accessToken, clearAuth } = useAuthStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitType, setNewHabitType] = useState<'positive' | 'negative'>('positive');
   const [newHabitUnit, setNewHabitUnit] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      if (!accessToken) return;
-
-      setLoading(true);
-      try {
-        const data = await loadHabitData(accessToken);
-        if (data) {
-          setHabitData(migrateHabitData(data));
-        } else {
-          setHabitData(getDefaultHabitData());
-        }
-      } catch (error) {
-        if (error instanceof TokenExpiredError) {
-          clearAuth();
-          navigate('/login?expired=true');
-          return;
-        }
-        console.error('Failed to load data:', error);
-        setHabitData(getDefaultHabitData());
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [accessToken, setHabitData, setLoading, clearAuth, navigate]);
-
-  const syncToCloud = async () => {
-    if (!accessToken) return;
-
-    setIsSaving(true);
-    try {
-      await saveHabitData(accessToken, getHabitData());
-    } catch (error) {
-      if (error instanceof TokenExpiredError) {
-        clearAuth();
-        navigate('/login?expired=true');
-        return;
-      }
-      console.error('Failed to save data:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleAddHabit = async () => {
+  const handleAddHabit = () => {
     if (!newHabitName.trim()) return;
 
     const habit: Habit = {
@@ -92,32 +42,19 @@ export function ManageHabitsPage() {
     setNewHabitType('positive');
     setNewHabitUnit('');
     setShowAddForm(false);
-    await syncToCloud();
   };
 
-  const handleDeleteHabit = async (habitId: string) => {
+  const handleDeleteHabit = (habitId: string) => {
     deleteHabit(habitId);
     setDeleteConfirmId(null);
-    await syncToCloud();
   };
 
-  const handleEditHabit = async (habit: Habit, updates: { name: string; type: 'positive' | 'negative'; createdAt: string; unit?: string }) => {
+  const handleEditHabit = (habit: Habit, updates: { name: string; type: 'positive' | 'negative'; createdAt: string; unit?: string }) => {
     updateHabit(habit.id, updates);
     setEditingHabit(null);
-    await syncToCloud();
   };
 
   const activeHabits = habits.filter((h) => !h.archived);
-
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary)]"></div>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>
@@ -287,7 +224,7 @@ export function ManageHabitsPage() {
             </div>
 
             <div className="flex gap-2 mt-3">
-              <Button onClick={handleAddHabit} disabled={!newHabitName.trim() || isSaving}>
+              <Button onClick={handleAddHabit} disabled={!newHabitName.trim()}>
                 Add Habit
               </Button>
               <Button variant="ghost" onClick={() => setShowAddForm(false)}>
@@ -338,7 +275,6 @@ export function ManageHabitsPage() {
             habit={editingHabit}
             onSave={handleEditHabit}
             onClose={() => setEditingHabit(null)}
-            isSaving={isSaving}
           />
         )}
       </div>
@@ -350,10 +286,9 @@ interface EditHabitModalProps {
   habit: Habit;
   onSave: (habit: Habit, updates: { name: string; type: 'positive' | 'negative'; createdAt: string; unit?: string }) => void;
   onClose: () => void;
-  isSaving: boolean;
 }
 
-function EditHabitModal({ habit, onSave, onClose, isSaving }: EditHabitModalProps) {
+function EditHabitModal({ habit, onSave, onClose }: EditHabitModalProps) {
   const [name, setName] = useState(habit.name);
   const [type, setType] = useState<'positive' | 'negative'>(habit.type);
   const [createdAt, setCreatedAt] = useState(habit.createdAt.split('T')[0]);
@@ -456,7 +391,7 @@ function EditHabitModal({ habit, onSave, onClose, isSaving }: EditHabitModalProp
           <Button variant="ghost" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="flex-1" onClick={handleSubmit} disabled={!name.trim() || isSaving}>
+          <Button className="flex-1" onClick={handleSubmit} disabled={!name.trim()}>
             Save
           </Button>
         </div>

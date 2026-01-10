@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Habit, HabitEntry, HabitData } from '../types';
 
 interface HabitState {
@@ -16,7 +17,9 @@ interface HabitState {
   getHabitData: () => HabitData;
 }
 
-export const useHabitStore = create<HabitState>((set, get) => ({
+export const useHabitStore = create<HabitState>()(
+  persist(
+    (set, get) => ({
   habits: [],
   entries: [],
   lastSyncedAt: null,
@@ -100,4 +103,14 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     entries: get().entries,
     lastSyncedAt: get().lastSyncedAt || new Date().toISOString(),
   }),
-}));
+    }),
+    {
+      name: 'habitly-storage',
+      partialize: (state) => ({
+        habits: state.habits,
+        entries: state.entries,
+        lastSyncedAt: state.lastSyncedAt,
+      }),
+    }
+  )
+);

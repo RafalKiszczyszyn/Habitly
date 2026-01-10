@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Button, Card } from '../components/ui';
 import { useHabitStore } from '../stores/habit-store';
-import { useAuthStore } from '../stores/auth-store';
-import { loadHabitData, saveHabitData, getDefaultHabitData, migrateHabitData, TokenExpiredError } from '../lib/google-drive';
 import { formatDate } from '../lib/calendar';
 
 function getDateDisplay(date: Date): string {
@@ -39,9 +37,8 @@ function parseDate(dateStr: string | null): Date {
 export function HomePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { habits, entries, setHabitData, toggleEntry, setEntry, getHabitData, isLoading, setLoading } =
+  const { habits, entries, toggleEntry, setEntry } =
     useHabitStore();
-  const { accessToken, clearAuth } = useAuthStore();
   const [amountInputHabitId, setAmountInputHabitId] = useState<string | null>(null);
   const [amountInputValue, setAmountInputValue] = useState('');
 
@@ -51,52 +48,8 @@ export function HomePage() {
 
   const selectedDateStr = formatDate(selectedDate);
 
-  useEffect(() => {
-    async function loadData() {
-      if (!accessToken) return;
-
-      setLoading(true);
-      try {
-        const data = await loadHabitData(accessToken);
-        if (data) {
-          setHabitData(migrateHabitData(data));
-        } else {
-          setHabitData(getDefaultHabitData());
-        }
-      } catch (error) {
-        if (error instanceof TokenExpiredError) {
-          clearAuth();
-          navigate('/login?expired=true');
-          return;
-        }
-        console.error('Failed to load data:', error);
-        setHabitData(getDefaultHabitData());
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [accessToken, setHabitData, setLoading, clearAuth, navigate]);
-
-  const syncToCloud = async () => {
-    if (!accessToken) return;
-
-    try {
-      await saveHabitData(accessToken, getHabitData());
-    } catch (error) {
-      if (error instanceof TokenExpiredError) {
-        clearAuth();
-        navigate('/login?expired=true');
-        return;
-      }
-      console.error('Failed to save data:', error);
-    }
-  };
-
-  const handleToggle = async (habitId: string) => {
+  const handleToggle = (habitId: string) => {
     toggleEntry(habitId, selectedDateStr);
-    await syncToCloud();
   };
 
   const goToPreviousDay = () => {
@@ -148,13 +101,12 @@ export function HomePage() {
   };
 
   // Save amount and close input
-  const handleSaveAmount = async (occurred: boolean) => {
+  const handleSaveAmount = (occurred: boolean) => {
     if (!amountInputHabitId) return;
     const amount = amountInputValue ? parseFloat(amountInputValue) : undefined;
     setEntry(amountInputHabitId, selectedDateStr, occurred, amount);
     setAmountInputHabitId(null);
     setAmountInputValue('');
-    await syncToCloud();
   };
 
   // Determine if a habit is "successful" on selected date
@@ -176,16 +128,6 @@ export function HomePage() {
     return active;
   });
   const successCount = activeHabits.filter((h) => isSuccess(h)).length;
-
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary)]"></div>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>

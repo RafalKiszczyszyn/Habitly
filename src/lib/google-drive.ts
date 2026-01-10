@@ -11,6 +11,18 @@ export class TokenExpiredError extends Error {
   }
 }
 
+export class SyncConflictError extends Error {
+  cloudData: HabitData;
+  localData: HabitData;
+
+  constructor(cloudData: HabitData, localData: HabitData) {
+    super('Sync conflict detected');
+    this.name = 'SyncConflictError';
+    this.cloudData = cloudData;
+    this.localData = localData;
+  }
+}
+
 function checkResponse(response: Response, errorMessage: string): void {
   if (response.status === 401) {
     throw new TokenExpiredError();
@@ -54,8 +66,7 @@ export async function loadHabitData(accessToken: string): Promise<Record<string,
   return response.json();
 }
 
-export async function saveHabitData(accessToken: string, data: HabitData): Promise<void> {
-  const fileId = await findDataFile(accessToken);
+async function writeHabitData(accessToken: string, data: HabitData, fileId: string | null): Promise<void> {
   const dataWithTimestamp = { ...data, lastSyncedAt: new Date().toISOString() };
   const body = JSON.stringify(dataWithTimestamp);
 
@@ -92,6 +103,38 @@ export async function saveHabitData(accessToken: string, data: HabitData): Promi
 
     checkResponse(response, 'Failed to create habit data file');
   }
+}
+
+export async function saveHabitData(accessToken: string, data: HabitData): Promise<void> {
+  const fileId = await findDataFile(accessToken);
+
+  // Check for conflicts if file exists
+  if (fileId) {
+    const response = await fetch(`${DRIVE_API_URL}/files/${fileId}?alt=media`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    checkResponse(response, 'Failed to check cloud data');
+
+    const cloudData = migrateHabitData(await response.json());
+    const localSyncTime = new Date(data.lastSyncedAt).getTime();
+    const cloudSyncTime = new Date(cloudData.lastSyncedAt).getTime();
+
+    // If cloud has newer data, throw conflict error
+    if (cloudSyncTime > localSyncTime) {
+      throw new SyncConflictError(cloudData, data);
+    }
+  }
+
+  await writeHabitData(accessToken, data, fileId);
+}
+
+// Force save without conflict check (when user chooses to overwrite cloud)
+export async function forceSaveHabitData(accessToken: string, data: HabitData): Promise<void> {
+  const fileId = await findDataFile(accessToken);
+  await writeHabitData(accessToken, data, fileId);
 }
 
 export function getDefaultHabitData(): HabitData {

@@ -46,8 +46,8 @@ export function getAccessToken(): Promise<string> {
   });
 }
 
-export function signIn(): Promise<string> {
-  return new Promise((resolve, reject) => {
+export async function signIn(): Promise<{ accessToken: string; user: User }> {
+  const accessToken = await new Promise<string>((resolve, reject) => {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
@@ -62,6 +62,9 @@ export function signIn(): Promise<string> {
 
     tokenClient.requestAccessToken({ prompt: 'consent' });
   });
+
+  const user = await fetchUserInfo(accessToken);
+  return { accessToken, user };
 }
 
 export function signOut(): void {

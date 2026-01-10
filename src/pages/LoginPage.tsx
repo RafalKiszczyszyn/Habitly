@@ -1,15 +1,23 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Card } from '../components/ui';
-import { signIn, fetchUserInfo } from '../lib/google-auth';
+import { signIn } from '../lib/google-auth';
+import { loadHabitData, getDefaultHabitData, migrateHabitData } from '../lib/google-drive';
 import { useAuthStore } from '../stores/auth-store';
+import { useHabitStore } from '../stores/habit-store';
 
-export function LoginPage() {
+interface LoginPageProps {
+  isFirstTime?: boolean;
+}
+
+export function LoginPage({ isFirstTime = false }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const setHabitData = useHabitStore((state) => state.setHabitData);
   const sessionExpired = searchParams.get('expired') === 'true';
 
   const handleSignIn = async () => {
@@ -17,14 +25,33 @@ export function LoginPage() {
     setError(null);
 
     try {
-      const accessToken = await signIn();
-      const user = await fetchUserInfo(accessToken);
+      setLoadingStatus('Signing in...');
+      const { accessToken, user } = await signIn();
       setAuth(user, accessToken);
+
+      // Load data from cloud after first-time login
+      if (isFirstTime) {
+        setLoadingStatus('Loading your data...');
+        try {
+          const cloudData = await loadHabitData(accessToken);
+          if (cloudData) {
+            setHabitData(migrateHabitData(cloudData));
+          } else {
+            setHabitData(getDefaultHabitData());
+          }
+        } catch (loadErr) {
+          console.error('Failed to load cloud data:', loadErr);
+          // Use default data if cloud load fails
+          setHabitData(getDefaultHabitData());
+        }
+      }
+
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
       setIsLoading(false);
+      setLoadingStatus('');
     }
   };
 
@@ -33,10 +60,12 @@ export function LoginPage() {
       <Card className="w-full max-w-sm text-center">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-[var(--color-text)] mb-2">
-            Habitly
+            {isFirstTime ? 'Welcome to Habitly' : 'Habitly'}
           </h1>
           <p className="text-[var(--color-text-muted)]">
-            Track your habits, build better routines
+            {isFirstTime
+              ? 'Sign in to get started. Your data will be synced across devices.'
+              : 'Track your habits, build better routines'}
           </p>
         </div>
 
@@ -59,7 +88,7 @@ export function LoginPage() {
           size="lg"
         >
           {isLoading ? (
-            'Signing in...'
+            loadingStatus || 'Signing in...'
           ) : (
             <>
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
