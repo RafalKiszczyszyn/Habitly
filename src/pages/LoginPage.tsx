@@ -16,9 +16,15 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user: previousUser, setAuth } = useAuthStore();
+  const { user: previousUser, setAuth, setLocalUser } = useAuthStore();
   const { setHabitData, clearHabitData, setLoading } = useHabitStore();
   const sessionExpired = searchParams.get('expired') === 'true';
+
+  const handleContinueLocally = () => {
+    setLocalUser();
+    setHabitData(getDefaultHabitData());
+    navigate('/');
+  };
 
   const handleSignIn = async () => {
     setIsLoading(true);
@@ -127,8 +133,22 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
           )}
         </Button>
 
+        <div className="mt-4 flex items-center gap-3">
+          <div className="flex-1 h-px bg-[var(--color-border)]" />
+          <span className="text-xs text-[var(--color-text-muted)]">or</span>
+          <div className="flex-1 h-px bg-[var(--color-border)]" />
+        </div>
+
+        <button
+          onClick={handleContinueLocally}
+          disabled={isLoading}
+          className="mt-4 w-full py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
+        >
+          Continue without account
+        </button>
+
         <p className="mt-4 text-xs text-[var(--color-text-muted)]">
-          Your data is stored securely in your own Google Drive
+          Sign in to sync your data across devices
         </p>
       </Card>
     </div>

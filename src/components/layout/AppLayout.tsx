@@ -14,7 +14,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
-  const { user, accessToken, setAuth, clearAuth } = useAuthStore();
+  const { user, accessToken, isLocalUser, setAuth, clearAuth } = useAuthStore();
   const { getHabitData, setHabitData, clearHabitData, isLoading, setLoading } = useHabitStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncConflict, setSyncConflict] = useState<{ cloud: HabitData; local: HabitData } | null>(null);
@@ -54,6 +54,35 @@ export function AppLayout({ children }: AppLayoutProps) {
       }
     } catch (error) {
       console.error('Sign in failed:', error);
+    }
+  };
+
+  const handleConnectToCloud = async () => {
+    setShowMenu(false);
+    setIsSyncing(true);
+    try {
+      const result = await signIn();
+      if (result) {
+        setAuth(result.user, result.accessToken);
+
+        // Try to sync local data with cloud
+        const cloudData = await loadHabitData(result.accessToken);
+        const localData = getHabitData();
+
+        if (cloudData) {
+          const migratedCloud = migrateHabitData(cloudData);
+          // Cloud has data - show conflict to let user choose
+          setSyncConflict({ cloud: migratedCloud, local: localData });
+        } else {
+          // No cloud data - upload local data
+          const newSyncedAt = await saveHabitData(result.accessToken, localData);
+          setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
+        }
+      }
+    } catch (error) {
+      console.error('Connect to cloud failed:', error);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -140,10 +169,10 @@ export function AppLayout({ children }: AppLayoutProps) {
           <h1 className="text-xl font-bold text-[var(--color-text)]">Habitly</h1>
           <div className="relative">
             <button
-              onClick={user ? () => setShowMenu(!showMenu) : handleSync}
+              onClick={isLocalUser ? handleConnectToCloud : (accessToken ? () => setShowMenu(!showMenu) : handleConnectToCloud)}
               disabled={isSyncing}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface)] transition-colors disabled:opacity-50"
-              title={user ? 'Cloud sync options' : 'Sign in & sync'}
+              title={isLocalUser ? 'Connect to cloud' : (accessToken ? 'Cloud sync options' : 'Connect to cloud')}
             >
               {isSyncing ? (
                 <svg className="w-5 h-5 animate-spin text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24">
@@ -156,12 +185,12 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </svg>
               )}
               <span className="text-sm text-[var(--color-text)]">
-                {user ? 'Sync' : 'Sign in'}
+                {accessToken ? 'Sync' : 'Connect'}
               </span>
             </button>
 
-            {/* Dropdown menu for logged in users */}
-            {showMenu && user && (
+            {/* Dropdown menu for cloud users */}
+            {showMenu && accessToken && user && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg overflow-hidden">
                 <div className="px-3 py-2 border-b border-[var(--color-border)]">
                   <p className="text-sm font-medium text-[var(--color-text)] truncate">{user.name}</p>
