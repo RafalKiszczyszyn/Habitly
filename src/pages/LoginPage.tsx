@@ -16,8 +16,8 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const setAuth = useAuthStore((state) => state.setAuth);
-  const setHabitData = useHabitStore((state) => state.setHabitData);
+  const { user: previousUser, setAuth } = useAuthStore();
+  const { setHabitData, clearHabitData } = useHabitStore();
   const sessionExpired = searchParams.get('expired') === 'true';
 
   const handleSignIn = async () => {
@@ -27,10 +27,19 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
     try {
       setLoadingStatus('Signing in...');
       const { accessToken, user } = await signIn();
+
+      // Check if user changed (or no previous user)
+      const userChanged = !previousUser || previousUser.id !== user.id;
+
       setAuth(user, accessToken);
 
-      // Load data from cloud after first-time login
-      if (isFirstTime) {
+      // Load data from cloud if user changed or no previous user
+      if (userChanged) {
+        // Clear local data first if switching users
+        if (previousUser && previousUser.id !== user.id) {
+          clearHabitData();
+        }
+
         setLoadingStatus('Loading your data...');
         try {
           const cloudData = await loadHabitData(accessToken);

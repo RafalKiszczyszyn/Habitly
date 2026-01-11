@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth-store';
 import { useHabitStore } from '../../stores/habit-store';
 import { signIn, signOut } from '../../lib/google-auth';
-import { loadHabitData, saveHabitData, forceSaveHabitData, migrateHabitData, TokenExpiredError, SyncConflictError } from '../../lib/google-drive';
+import { loadHabitData, saveHabitData, forceSaveHabitData, migrateHabitData, getDefaultHabitData, TokenExpiredError, SyncConflictError } from '../../lib/google-drive';
 import { SyncConflictModal } from '../SyncConflictModal';
 import type { HabitData } from '../../types';
 
@@ -24,7 +24,33 @@ export function AppLayout({ children }: AppLayoutProps) {
     try {
       const result = await signIn();
       if (result) {
+        // Check if user changed (or no previous user)
+        const userChanged = !user || user.id !== result.user.id;
+
         setAuth(result.user, result.accessToken);
+
+        // Load data from cloud if user changed
+        if (userChanged) {
+          // Clear local data first if switching users
+          if (user && user.id !== result.user.id) {
+            clearHabitData();
+          }
+
+          setIsSyncing(true);
+          try {
+            const cloudData = await loadHabitData(result.accessToken);
+            if (cloudData) {
+              setHabitData(migrateHabitData(cloudData));
+            } else {
+              setHabitData(getDefaultHabitData());
+            }
+          } catch (loadErr) {
+            console.error('Failed to load cloud data:', loadErr);
+            setHabitData(getDefaultHabitData());
+          } finally {
+            setIsSyncing(false);
+          }
+        }
       }
     } catch (error) {
       console.error('Sign in failed:', error);
