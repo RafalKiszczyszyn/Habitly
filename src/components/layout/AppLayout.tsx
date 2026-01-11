@@ -15,7 +15,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { user, accessToken, setAuth, clearAuth } = useAuthStore();
-  const { getHabitData, setHabitData } = useHabitStore();
+  const { getHabitData, setHabitData, clearHabitData } = useHabitStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncConflict, setSyncConflict] = useState<{ cloud: HabitData; local: HabitData } | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -34,7 +34,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const handleSignOut = () => {
     signOut();
     clearAuth();
+    clearHabitData();
     setShowMenu(false);
+    navigate('/login');
   };
 
   const handleSync = async () => {
@@ -63,7 +65,8 @@ export function AppLayout({ children }: AppLayoutProps) {
       }
 
       // Save local data to cloud
-      await saveHabitData(accessToken, localData);
+      const newSyncedAt = await saveHabitData(accessToken, localData);
+      setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         clearAuth();
@@ -84,7 +87,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (!accessToken || !syncConflict) return;
     setIsSyncing(true);
     try {
-      await forceSaveHabitData(accessToken, syncConflict.local);
+      const newSyncedAt = await forceSaveHabitData(accessToken, syncConflict.local);
+      setHabitData({ ...syncConflict.local, lastSyncedAt: newSyncedAt });
       setSyncConflict(null);
     } catch (error) {
       if (error instanceof TokenExpiredError) {

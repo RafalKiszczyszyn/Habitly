@@ -8,6 +8,7 @@ interface HabitState {
   lastSyncedAt: string | null;
   isLoading: boolean;
   setHabitData: (data: HabitData) => void;
+  clearHabitData: () => void;
   addHabit: (habit: Habit) => void;
   updateHabit: (id: string, updates: Partial<Habit>) => void;
   deleteHabit: (id: string) => void;
@@ -30,6 +31,13 @@ export const useHabitStore = create<HabitState>()(
       habits: data.habits,
       entries: data.entries,
       lastSyncedAt: data.lastSyncedAt,
+    }),
+
+  clearHabitData: () =>
+    set({
+      habits: [],
+      entries: [],
+      lastSyncedAt: null,
     }),
 
   addHabit: (habit) =>

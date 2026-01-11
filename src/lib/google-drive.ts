@@ -66,8 +66,9 @@ export async function loadHabitData(accessToken: string): Promise<Record<string,
   return response.json();
 }
 
-async function writeHabitData(accessToken: string, data: HabitData, fileId: string | null): Promise<void> {
-  const dataWithTimestamp = { ...data, lastSyncedAt: new Date().toISOString() };
+async function writeHabitData(accessToken: string, data: HabitData, fileId: string | null): Promise<string> {
+  const newSyncedAt = new Date().toISOString();
+  const dataWithTimestamp = { ...data, lastSyncedAt: newSyncedAt };
   const body = JSON.stringify(dataWithTimestamp);
 
   if (fileId) {
@@ -103,9 +104,11 @@ async function writeHabitData(accessToken: string, data: HabitData, fileId: stri
 
     checkResponse(response, 'Failed to create habit data file');
   }
+
+  return newSyncedAt;
 }
 
-export async function saveHabitData(accessToken: string, data: HabitData): Promise<void> {
+export async function saveHabitData(accessToken: string, data: HabitData): Promise<string> {
   const fileId = await findDataFile(accessToken);
 
   // Check for conflicts if file exists
@@ -128,13 +131,13 @@ export async function saveHabitData(accessToken: string, data: HabitData): Promi
     }
   }
 
-  await writeHabitData(accessToken, data, fileId);
+  return writeHabitData(accessToken, data, fileId);
 }
 
 // Force save without conflict check (when user chooses to overwrite cloud)
-export async function forceSaveHabitData(accessToken: string, data: HabitData): Promise<void> {
+export async function forceSaveHabitData(accessToken: string, data: HabitData): Promise<string> {
   const fileId = await findDataFile(accessToken);
-  await writeHabitData(accessToken, data, fileId);
+  return writeHabitData(accessToken, data, fileId);
 }
 
 export function getDefaultHabitData(): HabitData {
