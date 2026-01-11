@@ -17,7 +17,7 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user: previousUser, setAuth } = useAuthStore();
-  const { setHabitData, clearHabitData } = useHabitStore();
+  const { setHabitData, clearHabitData, setLoading } = useHabitStore();
   const sessionExpired = searchParams.get('expired') === 'true';
 
   const handleSignIn = async () => {
@@ -40,7 +40,9 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
           clearHabitData();
         }
 
-        setLoadingStatus('Loading your data...');
+        setLoading(true);
+        navigate('/');
+
         try {
           const cloudData = await loadHabitData(accessToken);
           if (cloudData) {
@@ -52,10 +54,12 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
           console.error('Failed to load cloud data:', loadErr);
           // Use default data if cloud load fails
           setHabitData(getDefaultHabitData());
+        } finally {
+          setLoading(false);
         }
+      } else {
+        navigate('/');
       }
-
-      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
