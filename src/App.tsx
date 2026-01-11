@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { CalendarPage } from './pages/CalendarPage';
+import { StatisticsPage } from './pages/StatisticsPage';
 import { ManageHabitsPage } from './pages/ManageHabitsPage';
 import { useAuthStore } from './stores/auth-store';
 import { initializeGoogleAuth } from './lib/google-auth';
@@ -45,6 +46,7 @@ function AppRoutes() {
       />
       <Route path="/" element={<HomePage />} />
       <Route path="/calendar/:habitId" element={<CalendarPage />} />
+      <Route path="/statistics/:habitId" element={<StatisticsPage />} />
       <Route path="/manage" element={<ManageHabitsPage />} />
     </Routes>
   );
