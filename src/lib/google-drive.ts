@@ -1,4 +1,4 @@
-import type { Habit, HabitEntry, HabitData } from '../types';
+import type { Habit, HabitEntry, HabitData, Goal } from '../types';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
@@ -144,6 +144,7 @@ export function getDefaultHabitData(): HabitData {
   return {
     habits: [],
     entries: [],
+    goals: [],
     lastSyncedAt: new Date().toISOString(),
   };
 }
@@ -180,9 +181,12 @@ export function migrateHabitData(data: Record<string, unknown>): HabitData {
     }));
   }
 
+  const goals = (data.goals as Goal[] | undefined) || [];
+
   return {
     habits: migratedHabits,
     entries: migratedEntries,
+    goals,
     lastSyncedAt: (data.lastSyncedAt as string) || new Date().toISOString(),
   };
 }

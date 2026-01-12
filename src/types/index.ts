@@ -19,9 +19,26 @@ export interface HabitEntry {
   amount?: number; // Optional amount when habit has a unit
 }
 
+export type GoalTargetType = 'occurrences' | 'units';
+export type GoalPeriod = 'day' | 'week' | 'month'; // day=1, week=7, month=30 days
+export type GoalTargetScope = 'per_period' | 'absolute';
+
+export interface Goal {
+  id: string;
+  habitId: string;
+  startDate: string; // YYYY-MM-DD format, must be today or future when created
+  period: GoalPeriod; // Period length: day=1, week=7, month=30 days
+  periodCount: number;
+  targetType: GoalTargetType; // 'occurrences' or 'units' (units only if habit has unit)
+  targetScope: GoalTargetScope; // 'per_period' = target per each period, 'absolute' = target for entire range
+  targetValue: number;
+  createdAt: string;
+}
+
 export interface HabitData {
   habits: Habit[];
   entries: HabitEntry[];
+  goals: Goal[];
   lastSyncedAt: string;
 }
 

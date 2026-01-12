@@ -346,6 +346,15 @@ export function HomePage() {
           Manage Your Habits
         </Button>
 
+        {/* Goals Button */}
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={() => navigate('/goals')}
+        >
+          Goals
+        </Button>
+
         {/* Amount Input Modal */}
         {amountInputHabitId && (() => {
           const habit = habits.find(h => h.id === amountInputHabitId);

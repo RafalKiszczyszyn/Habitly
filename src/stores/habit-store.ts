@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Habit, HabitEntry, HabitData } from '../types';
+import type { Habit, HabitEntry, HabitData, Goal } from '../types';
 
 interface HabitState {
   habits: Habit[];
   entries: HabitEntry[];
+  goals: Goal[];
   lastSyncedAt: string | null;
   isLoading: boolean;
   setHabitData: (data: HabitData) => void;
@@ -14,6 +15,9 @@ interface HabitState {
   deleteHabit: (id: string) => void;
   toggleEntry: (habitId: string, date: string) => void;
   setEntry: (habitId: string, date: string, occurred: boolean, amount?: number) => void;
+  addGoal: (goal: Goal) => void;
+  updateGoal: (id: string, updates: Partial<Goal>) => void;
+  deleteGoal: (id: string) => void;
   setLoading: (loading: boolean) => void;
   getHabitData: () => HabitData;
 }
@@ -23,6 +27,7 @@ export const useHabitStore = create<HabitState>()(
     (set, get) => ({
   habits: [],
   entries: [],
+  goals: [],
   lastSyncedAt: null,
   isLoading: false,
 
@@ -30,6 +35,7 @@ export const useHabitStore = create<HabitState>()(
     set({
       habits: data.habits,
       entries: data.entries,
+      goals: data.goals || [],
       lastSyncedAt: data.lastSyncedAt,
     }),
 
@@ -37,6 +43,7 @@ export const useHabitStore = create<HabitState>()(
     set({
       habits: [],
       entries: [],
+      goals: [],
       lastSyncedAt: null,
     }),
 
@@ -54,6 +61,7 @@ export const useHabitStore = create<HabitState>()(
     set((state) => ({
       habits: state.habits.filter((h) => h.id !== id),
       entries: state.entries.filter((e) => e.habitId !== id),
+      goals: state.goals.filter((g) => g.habitId !== id),
     })),
 
   toggleEntry: (habitId, date) =>
@@ -104,11 +112,27 @@ export const useHabitStore = create<HabitState>()(
       };
     }),
 
+  addGoal: (goal) =>
+    set((state) => ({
+      goals: [...state.goals, goal],
+    })),
+
+  updateGoal: (id, updates) =>
+    set((state) => ({
+      goals: state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g)),
+    })),
+
+  deleteGoal: (id) =>
+    set((state) => ({
+      goals: state.goals.filter((g) => g.id !== id),
+    })),
+
   setLoading: (loading) => set({ isLoading: loading }),
 
   getHabitData: () => ({
     habits: get().habits,
     entries: get().entries,
+    goals: get().goals,
     lastSyncedAt: get().lastSyncedAt || new Date().toISOString(),
   }),
     }),
@@ -117,6 +141,7 @@ export const useHabitStore = create<HabitState>()(
       partialize: (state) => ({
         habits: state.habits,
         entries: state.entries,
+        goals: state.goals,
         lastSyncedAt: state.lastSyncedAt,
       }),
     }

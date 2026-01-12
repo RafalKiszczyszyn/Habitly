@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage';
 import { CalendarPage } from './pages/CalendarPage';
 import { StatisticsPage } from './pages/StatisticsPage';
 import { ManageHabitsPage } from './pages/ManageHabitsPage';
+import { GoalsPage } from './pages/GoalsPage';
 import { useAuthStore } from './stores/auth-store';
 import { initializeGoogleAuth } from './lib/google-auth';
 
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Route path="/calendar/:habitId" element={<CalendarPage />} />
       <Route path="/statistics/:habitId" element={<StatisticsPage />} />
       <Route path="/manage" element={<ManageHabitsPage />} />
+      <Route path="/goals" element={<GoalsPage />} />
     </Routes>
   );
 }
