@@ -291,7 +291,7 @@ interface EditHabitModalProps {
 function EditHabitModal({ habit, onSave, onClose }: EditHabitModalProps) {
   const [name, setName] = useState(habit.name);
   const [type, setType] = useState<'positive' | 'negative'>(habit.type);
-  const [createdAt, setCreatedAt] = useState(habit.createdAt.split('T')[0]);
+  const [createdAt, setCreatedAt] = useState(formatDate(new Date(habit.createdAt)));
   const [unit, setUnit] = useState(habit.unit || '');
 
   const handleSubmit = () => {
