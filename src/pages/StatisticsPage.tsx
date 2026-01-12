@@ -51,6 +51,24 @@ function daysBetween(start: Date, end: Date): number {
   return Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1;
 }
 
+// Count how many distinct years are covered by the date range
+function yearsCovered(start: Date, end: Date): number {
+  return end.getFullYear() - start.getFullYear() + 1;
+}
+
+// Count how many distinct months are covered by the date range
+function monthsCovered(start: Date, end: Date): number {
+  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+}
+
+// Count how many distinct weeks are covered by the date range (weeks start on Sunday)
+function weeksCovered(start: Date, end: Date): number {
+  const startOfFirstWeek = getStartOfWeek(start);
+  const startOfLastWeek = getStartOfWeek(end);
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  return Math.floor((startOfLastWeek.getTime() - startOfFirstWeek.getTime()) / msPerWeek) + 1;
+}
+
 export function StatisticsPage() {
   const { habitId } = useParams<{ habitId: string }>();
   const navigate = useNavigate();
@@ -116,9 +134,9 @@ export function StatisticsPage() {
   // Calculate averages over the selected date range
   const averageStats = useMemo((): AverageStats => {
     const totalDays = daysBetween(dateRange.start, dateRange.end);
-    const totalWeeks = totalDays / 7;
-    const totalMonths = totalDays / 30.44; // Average days per month
-    const totalYears = totalDays / 365.25;
+    const totalWeeks = weeksCovered(dateRange.start, dateRange.end);
+    const totalMonths = monthsCovered(dateRange.start, dateRange.end);
+    const totalYears = yearsCovered(dateRange.start, dateRange.end);
 
     const occurrences = filteredEntries.length;
     const totalUnits = filteredEntries.reduce((sum, e) => sum + (e.amount ?? 1), 0);
