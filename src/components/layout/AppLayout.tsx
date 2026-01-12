@@ -15,7 +15,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { user, accessToken, isLocalUser, setAuth, clearAuth } = useAuthStore();
-  const { getHabitData, setHabitData, clearHabitData, isLoading, setLoading } = useHabitStore();
+  const { getHabitData, setHabitData, clearHabitData, isLoading, setLoading, lastSyncedAt } = useHabitStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncConflict, setSyncConflict] = useState<{ cloud: HabitData; local: HabitData } | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -195,6 +195,11 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <div className="px-3 py-2 border-b border-[var(--color-border)]">
                   <p className="text-sm font-medium text-[var(--color-text)] truncate">{user.name}</p>
                   <p className="text-xs text-[var(--color-text-muted)] truncate">{user.email}</p>
+                  {lastSyncedAt && (
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                      Last synced: {new Date(lastSyncedAt).toLocaleString()}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={handleSync}
