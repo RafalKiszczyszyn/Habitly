@@ -83,7 +83,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/Habitly">
+      <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
     </QueryClientProvider>
