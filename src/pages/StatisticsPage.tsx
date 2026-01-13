@@ -76,7 +76,7 @@ export function StatisticsPage() {
 
   const habit = habits.find((h) => h.id === habitId);
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(23, 59, 59, 999);
 
   const habitCreatedAt = useMemo(() => {
     if (!habit?.createdAt) return today;
