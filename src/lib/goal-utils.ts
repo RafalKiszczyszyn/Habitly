@@ -24,6 +24,8 @@ export interface GoalCompletionResult {
   // Whether goal has started
   hasStarted: boolean;
   endDate: Date;
+  status: 'success' | 'partial_success' | 'failure' | null,
+  state: 'future' | 'active' | 'past'
 }
 
 function formatDateString(date: Date): string {
@@ -93,6 +95,11 @@ export function calculateGoalCompletion(
   const hasStarted = goalStart <= today;
   const periods = getPeriodsFromStart(goal.startDate, goal.period, goal.periodCount);
   const endDate = periods[periods.length - 1].end;
+  const state = hasStarted
+    ? today > endDate
+      ? 'past'
+      : 'active'
+    : 'future'
 
   if (!hasStarted) {
     return {
@@ -102,7 +109,9 @@ export function calculateGoalCompletion(
       absoluteTarget: goal.targetValue,
       currentPeriod: null,
       hasStarted: false,
-      endDate
+      endDate,
+      status: null,
+      state
     };
   }
 
@@ -127,14 +136,17 @@ export function calculateGoalCompletion(
       absoluteValue = Math.max(goal.targetValue - absoluteValue, 0)
     }
     
+    const success = habit.type === 'negative' ? (absoluteValue > 0) : (absoluteValue >= goal.targetValue);
     return {
-      metCount: habit.type === 'negative' ? +(absoluteValue > 0) : +(absoluteValue >= goal.targetValue),
-      totalPeriods: 1,
+      metCount: 0,
+      totalPeriods: 0,
       absoluteValue,
       absoluteTarget: goal.targetValue,
       currentPeriod: null,
       hasStarted: true,
-      endDate
+      endDate,
+      status: success ? 'success' : 'failure',
+      state,
     };
   }
 
@@ -189,7 +201,13 @@ export function calculateGoalCompletion(
     absoluteTarget: goal.targetValue,
     currentPeriod,
     hasStarted: true,
-    endDate
+    endDate,
+    status: metCount === goal.periodCount
+      ? 'success'
+      : metCount > 0
+        ? 'partial_success'
+        : 'failure',
+    state
   };
 }
 

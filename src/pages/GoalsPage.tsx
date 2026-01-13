@@ -4,21 +4,40 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { Button, Card } from '../components/ui';
 import { useHabitStore } from '../stores/habit-store';
 import { formatDate } from '../lib/calendar';
-import { calculateGoalCompletion, getPeriodLabel } from '../lib/goal-utils';
-import type { Goal, Habit, HabitEntry, GoalTargetType, GoalPeriod, GoalTargetScope } from '../types';
+import { calculateGoalCompletion, getPeriodLabel, type GoalCompletionResult } from '../lib/goal-utils';
+import type { Goal, Habit, GoalTargetType, GoalPeriod, GoalTargetScope } from '../types';
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
+
+interface GoalWithCompletionResult {
+  goal: Goal;
+  completion: GoalCompletionResult;
+}
+
+type GoalFilter = 'all' | 'past' | 'active' | 'future' | 'success' | 'partial_success' | 'failure';
+
+const FILTER_OPTIONS: { value: GoalFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'past', label: 'Past' },
+  { value: 'future', label: 'Future' },
+  { value: 'success', label: 'Success' },
+  { value: 'partial_success', label: 'Partial' },
+  { value: 'failure', label: 'Failed' },
+];
 
 export function GoalsPage() {
   const navigate = useNavigate();
   const { habits, entries, goals, addGoal, deleteGoal } = useHabitStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<GoalFilter>('all');
 
   // Filter out goals where habit was deleted or goal has units but habit lost its unit
-  const visibleGoals = useMemo(() => {
+  // Calculate completion result, so it's done once.
+  const allGoals = useMemo(() => {
     return goals
       .filter((goal) => {
         const habit = habits.find((h) => h.id === goal.habitId);
@@ -26,10 +45,34 @@ export function GoalsPage() {
         if (goal.targetType === 'units' && !habit.unit) return false;
         return true;
       })
+      .map(goal => {
+        const habit = habits.find((h) => h.id === goal.habitId);
+        return { goal, completion: calculateGoalCompletion(goal, habit!, entries) }
+      })
       .sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.goal.createdAt).getTime() - new Date(a.goal.createdAt).getTime()
       );
-  }, [goals, habits]);
+  }, [goals, habits, entries]);
+
+  // Apply filter
+  const visibleGoals = useMemo(() => {
+    if (filter === 'all') return allGoals;
+
+    return allGoals.filter(({ completion }) => {
+      switch (filter) {
+        case 'past':
+        case 'active':
+        case 'future':
+          return completion.state === filter;
+        case 'success':
+        case 'partial_success':
+        case 'failure':
+          return completion.status === filter;
+        default:
+          return true;
+      }
+    });
+  }, [allGoals, filter]);
 
   const handleDeleteGoal = (goalId: string) => {
     deleteGoal(goalId);
@@ -89,22 +132,42 @@ export function GoalsPage() {
           </p>
         )}
 
+        {/* Filter buttons */}
+        {allGoals.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {FILTER_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setFilter(option.value)}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  filter === option.value
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-border)]'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Goals List */}
         <div className="space-y-3">
           {visibleGoals.length === 0 ? (
             <Card>
               <p className="text-center text-[var(--color-text-muted)]">
-                No goals yet. Add your first goal to start tracking!
+                {allGoals.length === 0
+                  ? 'No goals yet. Add your first goal to start tracking!'
+                  : 'No goals match the selected filter.'}
               </p>
             </Card>
           ) : (
-            visibleGoals.map((goal) => (
+            visibleGoals.map((goalWithCompletionResult) => (
               <GoalCard
-                key={goal.id}
-                goal={goal}
+                key={goalWithCompletionResult.goal.id}
+                goalWithCompletionResult={goalWithCompletionResult}
                 habits={habits}
-                entries={entries}
-                onDelete={() => setDeleteConfirmId(goal.id)}
+                onDelete={() => setDeleteConfirmId(goalWithCompletionResult.goal.id)}
               />
             ))
           )}
@@ -151,19 +214,17 @@ export function GoalsPage() {
 }
 
 interface GoalCardProps {
-  goal: Goal;
+  goalWithCompletionResult: GoalWithCompletionResult;
   habits: Habit[];
-  entries: HabitEntry[];
   onDelete: () => void;
 }
 
-function GoalCard({ goal, habits, entries, onDelete }: GoalCardProps) {
+function GoalCard({ goalWithCompletionResult, habits, onDelete }: GoalCardProps) {
+  const { goal, completion } = goalWithCompletionResult;
   const habit = habits.find((h) => h.id === goal.habitId);
   if (!habit) return null;
 
-  const completion = calculateGoalCompletion(goal, habit, entries);
   const periodLabel = getPeriodLabel(goal.period, completion.totalPeriods);
-
   const targetTypeLabel = goal.targetType === 'units' ? habit.unit : 'times';
   const limitWord = habit.type === 'negative' ? 'max' : 'min';
 
@@ -172,18 +233,12 @@ function GoalCard({ goal, habits, entries, onDelete }: GoalCardProps) {
     ? `${limitWord} ${goal.targetValue} ${targetTypeLabel} total`
     : `${limitWord} ${goal.targetValue} ${targetTypeLabel} per ${goal.period}`;
 
-  const badge = completion.metCount === completion.totalPeriods 
-    ? { style: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', text: 'Success' }
-    : completion.metCount > 0
-      ? { style: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', text: 'Partial Success' }
-      : { style: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', text: 'Failure' }
-
   return (
     <Card className="space-y-3">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           {/* Habit name with color dot */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: habit.color }}
@@ -200,13 +255,34 @@ function GoalCard({ goal, habits, entries, onDelete }: GoalCardProps) {
             >
               {habit.type === 'positive' ? '+' : '-'}
             </span>
-            { new Date() > completion.endDate && (
+            {/* State badge */}
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
+                completion.state === 'active'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  : completion.state === 'past'
+                  ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+              }`}
+            >
+              {completion.state}
+            </span>
+            {/* Status badge (only show if status is set) */}
+            {completion.status && (
               <span
                 className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
-                  badge.style
+                  completion.status === 'success'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : completion.status === 'partial_success'
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                 }`}
               >
-                {badge.text}
+                {completion.status === 'success'
+                  ? 'success'
+                  : completion.status === 'partial_success'
+                  ? 'partial'
+                  : 'failed'}
               </span>
             )}
           </div>
@@ -390,7 +466,7 @@ function AddGoalModal({ habits, onAdd, onClose }: AddGoalModalProps) {
     });
   };
 
-  const isValid = habitId && startDate && targetValue && parseFloat(targetValue) > 0 && startDate >= today && periodCount > 0;
+  const isValid = habitId && startDate && targetValue && parseFloat(targetValue) > 0 && periodCount > 0;
 
   const targetTypeLabel = targetType === 'units' ? selectedHabit?.unit : 'times';
 
@@ -430,12 +506,8 @@ function AddGoalModal({ habits, onAdd, onClose }: AddGoalModalProps) {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              min={today}
               className="w-full px-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             />
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Goal can only start today or in the future
-            </p>
           </div>
 
           {/* Period */}
