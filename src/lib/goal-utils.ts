@@ -145,7 +145,7 @@ export function calculateGoalCompletion(
       currentPeriod: null,
       hasStarted: true,
       endDate,
-      status: success ? 'success' : 'failure',
+      status: state === 'past' ? (success ? 'success' : 'failure') : null,
       state,
     };
   }
@@ -194,6 +194,12 @@ export function calculateGoalCompletion(
     }
   }
 
+  const status = metCount === goal.periodCount
+    ? 'success'
+    : metCount > 0
+      ? 'partial_success'
+      : 'failure';
+
   return {
     metCount,
     totalPeriods: goal.periodCount,
@@ -202,11 +208,7 @@ export function calculateGoalCompletion(
     currentPeriod,
     hasStarted: true,
     endDate,
-    status: metCount === goal.periodCount
-      ? 'success'
-      : metCount > 0
-        ? 'partial_success'
-        : 'failure',
+    status: state === 'past' ? status : null,
     state
   };
 }
