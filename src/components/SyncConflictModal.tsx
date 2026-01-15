@@ -6,6 +6,7 @@ interface SyncConflictModalProps {
   localData: HabitData;
   onKeepLocal: () => void;
   onKeepCloud: () => void;
+  primaryAction?: 'local' | 'cloud';
 }
 
 function formatDate(dateStr: string): string {
@@ -17,6 +18,7 @@ export function SyncConflictModal({
   localData,
   onKeepLocal,
   onKeepCloud,
+  primaryAction = 'local',
 }: SyncConflictModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -52,13 +54,14 @@ export function SyncConflictModal({
 
         <div className="flex gap-2">
           <Button
-            variant="secondary"
+            variant={primaryAction === 'cloud' ? undefined : 'secondary'}
             className="flex-1"
             onClick={onKeepCloud}
           >
             Keep Cloud
           </Button>
           <Button
+            variant={primaryAction === 'local' ? undefined : 'secondary'}
             className="flex-1"
             onClick={onKeepLocal}
           >
