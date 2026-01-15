@@ -2,9 +2,31 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'child_process'
+
+function getAppVersion(): string {
+  try {
+    // Try to get exact tag matching v#.#.# on current commit
+    const tag = execSync('git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --exact-match 2>/dev/null', {
+      encoding: 'utf-8',
+    }).trim()
+    return tag
+  } catch {
+    // No tag found, fall back to short commit hash
+    try {
+      const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim()
+      return hash
+    } catch {
+      return 'unknown'
+    }
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(getAppVersion()),
+  },
   // base: '/Habitly/',
   plugins: [
     react(),

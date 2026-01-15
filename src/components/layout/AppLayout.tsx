@@ -150,7 +150,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-[var(--color-background)]">
       <header className="sticky top-0 z-10 bg-[var(--color-background)] border-b border-[var(--color-border)]">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-[var(--color-text)]">Habitly</h1>
+          <h1 className="text-xl font-bold text-[var(--color-text)]">
+            Habitly
+            <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">{__APP_VERSION__}</span>
+          </h1>
           <div className="relative">
             <button
               onClick={isLocalUser ? handleConnectToCloud : (accessToken ? () => setShowMenu(!showMenu) : handleConnectToCloud)}
