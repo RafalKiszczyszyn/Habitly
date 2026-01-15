@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Get version from git tag or commit hash
+VERSION=$(git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --exact-match 2>/dev/null || git rev-parse --short HEAD)
+
+# Write to .version file
+echo "$VERSION" > .version
+
+# Check if .version changed
+if ! git diff --quiet .version 2>/dev/null; then
+  echo "Updating version to: $VERSION"
+  git add .version
+  git commit --amend --no-edit
+fi
+
+exit 0

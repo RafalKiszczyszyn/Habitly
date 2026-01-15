@@ -2,23 +2,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { execSync } from 'child_process'
+import { readFileSync } from 'fs'
 
 function getAppVersion(): string {
   try {
-    // Try to get exact tag matching v#.#.# on current commit
-    const tag = execSync('git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --exact-match 2>/dev/null', {
-      encoding: 'utf-8',
-    }).trim()
-    return tag
+    // Read version from .version file (populated by pre-push hook)
+    return readFileSync('.version', 'utf-8').trim()
   } catch {
-    // No tag found, fall back to short commit hash
-    try {
-      const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim()
-      return hash
-    } catch {
-      return 'unknown'
-    }
+    return 'unknown'
   }
 }
 
