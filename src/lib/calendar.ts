@@ -95,3 +95,73 @@ export function isFutureDate(date: Date): boolean {
   compareDate.setHours(0, 0, 0, 0);
   return compareDate > today;
 }
+
+export type PeriodType = 'week' | 'month' | 'year';
+
+export interface Period {
+  start: Date;
+  end: Date;
+}
+
+export function getCoveredPeriods(
+  startDate: Date,
+  endDate: Date,
+  periodType: PeriodType
+): Period[] {
+  const periods: Period[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  if (periodType === 'week') {
+    // Get start of the week containing startDate (Sunday)
+    const currentPeriodStart = new Date(start);
+    currentPeriodStart.setDate(start.getDate() - start.getDay());
+
+    while (currentPeriodStart <= end) {
+      const periodStart = new Date(currentPeriodStart);
+      const periodEnd = new Date(currentPeriodStart);
+      periodEnd.setDate(periodEnd.getDate() + 6);
+
+      periods.push({ start: periodStart, end: periodEnd });
+
+      // Move to next week
+      currentPeriodStart.setDate(currentPeriodStart.getDate() + 7);
+    }
+  } else if (periodType === 'month') {
+    // Get start of the month containing startDate
+    const currentYear = start.getFullYear();
+    const currentMonth = start.getMonth();
+    const currentPeriodStart = new Date(currentYear, currentMonth, 1);
+
+    while (currentPeriodStart <= end) {
+      const periodStart = new Date(currentPeriodStart);
+      const periodEnd = new Date(
+        currentPeriodStart.getFullYear(),
+        currentPeriodStart.getMonth() + 1,
+        0
+      );
+
+      periods.push({ start: periodStart, end: periodEnd });
+
+      // Move to next month
+      currentPeriodStart.setMonth(currentPeriodStart.getMonth() + 1);
+    }
+  } else if (periodType === 'year') {
+    // Get start of the year containing startDate
+    const currentPeriodStart = new Date(start.getFullYear(), 0, 1);
+
+    while (currentPeriodStart <= end) {
+      const periodStart = new Date(currentPeriodStart);
+      const periodEnd = new Date(currentPeriodStart.getFullYear(), 11, 31);
+
+      periods.push({ start: periodStart, end: periodEnd });
+
+      // Move to next year
+      currentPeriodStart.setFullYear(currentPeriodStart.getFullYear() + 1);
+    }
+  }
+
+  return periods;
+}
