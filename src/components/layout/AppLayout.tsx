@@ -3,10 +3,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth-store';
 import { useHabitStore } from '../../stores/habit-store';
-import { signIn, signOut } from '../../lib/google-auth';
-import { loadHabitData, saveHabitData, forceSaveHabitData, migrateHabitData, getDefaultHabitData, TokenExpiredError, SyncConflictError } from '../../lib/google-drive';
+import { signIn as googleSignIn, signOut } from '../../lib/google-auth';
+import { loadHabitData, saveHabitData, forceSaveHabitData, TokenExpiredError, SyncConflictError } from '../../lib/google-drive';
 import { SyncConflictModal } from '../SyncConflictModal';
+import { MessagePopup } from '../ui';
 import type { HabitData } from '../../types';
+import { useSignIn } from '../../hooks/useSignIn';
+
+type Message = { text: string; type: 'error' | 'warning' | 'success' } | null;
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -15,53 +19,18 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { user, accessToken, isLocalUser, setAuth, clearAuth } = useAuthStore();
-  const { getHabitData, setHabitData, clearHabitData, isLoading, setLoading, lastSyncedAt } = useHabitStore();
+  const { getHabitData, setHabitData, clearHabitData, isLoading, lastSyncedAt } = useHabitStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncConflict, setSyncConflict] = useState<{ cloud: HabitData; local: HabitData } | null>(null);
   const [showMenu, setShowMenu] = useState(false);
-
-  const handleSignIn = async () => {
-    try {
-      const result = await signIn();
-      if (result) {
-        // Check if user changed (or no previous user)
-        const userChanged = !user || user.id !== result.user.id;
-
-        setAuth(result.user, result.accessToken);
-
-        // Load data from cloud if user changed
-        if (userChanged) {
-          // Clear local data first if switching users
-          if (user && user.id !== result.user.id) {
-            clearHabitData();
-          }
-
-          setLoading(true);
-          try {
-            const cloudData = await loadHabitData(result.accessToken);
-            if (cloudData) {
-              setHabitData(migrateHabitData(cloudData));
-            } else {
-              setHabitData(getDefaultHabitData());
-            }
-          } catch (loadErr) {
-            console.error('Failed to load cloud data:', loadErr);
-            setHabitData(getDefaultHabitData());
-          } finally {
-            setLoading(false);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Sign in failed:', error);
-    }
-  };
-
+  const [message, setMessage] = useState<Message>(null);
+  const { signIn } = useSignIn();
+  
   const handleConnectToCloud = async () => {
     setShowMenu(false);
     setIsSyncing(true);
     try {
-      const result = await signIn();
+      const result = await googleSignIn();
       if (result) {
         setAuth(result.user, result.accessToken);
 
@@ -70,9 +39,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         const localData = getHabitData();
 
         if (cloudData) {
-          const migratedCloud = migrateHabitData(cloudData);
           // Cloud has data - show conflict to let user choose
-          setSyncConflict({ cloud: migratedCloud, local: localData });
+          setSyncConflict({ cloud: cloudData, local: localData });
         } else {
           // No cloud data - upload local data
           const newSyncedAt = await saveHabitData(result.accessToken, localData);
@@ -80,7 +48,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         }
       }
     } catch (error) {
-      console.error('Connect to cloud failed:', error);
+      setMessage({ text: 'Failed to connect to cloud', type: 'error' });
     } finally {
       setIsSyncing(false);
     }
@@ -94,27 +62,37 @@ export function AppLayout({ children }: AppLayoutProps) {
     navigate('/login');
   };
 
+  const reauthenticate = async () => {
+    try {
+      await signIn();
+      setMessage({ text: 'Signed in successfully', type: 'success' });
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : 'Failed to sign in', type: 'error' });
+    } finally {
+      setIsSyncing(false);
+    }
+  }; 
+
   const handleSync = async () => {
+    setIsSyncing(true);
+    
     if (!accessToken) {
-      // If not logged in, prompt sign in first
-      await handleSignIn();
+      await reauthenticate();
       return;
     }
 
-    setIsSyncing(true);
     try {
       // First, try to load cloud data
       const cloudData = await loadHabitData(accessToken);
       const localData = getHabitData();
 
       if (cloudData) {
-        const migratedCloud = migrateHabitData(cloudData);
-        const cloudTime = new Date(migratedCloud.lastSyncedAt).getTime();
+        const cloudTime = new Date(cloudData.lastSyncedAt).getTime();
         const localTime = new Date(localData.lastSyncedAt).getTime();
 
         if (cloudTime > localTime) {
           // Cloud is newer - show conflict
-          setSyncConflict({ cloud: migratedCloud, local: localData });
+          setSyncConflict({ cloud: cloudData, local: localData });
           return;
         }
       }
@@ -124,33 +102,39 @@ export function AppLayout({ children }: AppLayoutProps) {
       setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
     } catch (error) {
       if (error instanceof TokenExpiredError) {
-        clearAuth();
-        navigate('/login?expired=true');
+        await reauthenticate();
         return;
       }
       if (error instanceof SyncConflictError) {
         setSyncConflict({ cloud: error.cloudData, local: error.localData });
         return;
       }
-      console.error('Sync failed:', error);
+      setMessage({ text: 'Sync failed', type: 'error' });
     } finally {
       setIsSyncing(false);
     }
   };
 
   const handleKeepLocal = async () => {
-    if (!accessToken || !syncConflict) return;
+    if (!syncConflict) return;
+    
     setIsSyncing(true);
+
+    if (!accessToken) {
+      await reauthenticate();
+      return;
+    }
+
     try {
       const newSyncedAt = await forceSaveHabitData(accessToken, syncConflict.local);
       setHabitData({ ...syncConflict.local, lastSyncedAt: newSyncedAt });
       setSyncConflict(null);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
-        clearAuth();
-        navigate('/login?expired=true');
+        await reauthenticate();
+        return;
       }
-      console.error('Failed to save data:', error);
+      setMessage({ text: 'Failed to save data', type: 'error' });
     } finally {
       setIsSyncing(false);
     }
@@ -240,6 +224,15 @@ export function AppLayout({ children }: AppLayoutProps) {
           localData={syncConflict.local}
           onKeepLocal={handleKeepLocal}
           onKeepCloud={handleKeepCloud}
+        />
+      )}
+
+      {/* Message Popup */}
+      {message && (
+        <MessagePopup
+          message={message.text}
+          type={message.type}
+          onClose={() => setMessage(null)}
         />
       )}
 

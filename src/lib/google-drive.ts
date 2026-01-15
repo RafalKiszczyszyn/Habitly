@@ -1,4 +1,4 @@
-import type { Habit, HabitEntry, HabitData, Goal } from '../types';
+import type { HabitData } from '../types';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
@@ -48,7 +48,7 @@ async function findDataFile(accessToken: string): Promise<string | null> {
   return data.files?.[0]?.id || null;
 }
 
-export async function loadHabitData(accessToken: string): Promise<Record<string, unknown> | null> {
+export async function loadHabitData(accessToken: string): Promise<HabitData | null> {
   const fileId = await findDataFile(accessToken);
 
   if (!fileId) {
@@ -121,7 +121,7 @@ export async function saveHabitData(accessToken: string, data: HabitData): Promi
 
     checkResponse(response, 'Failed to check cloud data');
 
-    const cloudData = migrateHabitData(await response.json());
+    const cloudData = await response.json() as HabitData;
     const localSyncTime = new Date(data.lastSyncedAt).getTime();
     const cloudSyncTime = new Date(cloudData.lastSyncedAt).getTime();
 
@@ -146,47 +146,5 @@ export function getDefaultHabitData(): HabitData {
     entries: [],
     goals: [],
     lastSyncedAt: new Date().toISOString(),
-  };
-}
-
-// Migrate old data format (completions) to new format (entries)
-export function migrateHabitData(data: Record<string, unknown>): HabitData {
-  const habits = (data.habits as Habit[] | undefined) || [];
-  const migratedHabits = habits.map((h) => ({
-    ...h,
-    type: h.type || 'positive', // Default old habits to positive
-  })) as Habit[];
-
-  // Handle old 'completions' field
-  const oldCompletions = data.completions as Array<{
-    habitId: string;
-    date: string;
-    completed?: boolean;
-    occurred?: boolean;
-    note?: string;
-  }> | undefined;
-
-  const entries = data.entries as HabitEntry[] | undefined;
-
-  let migratedEntries: HabitEntry[] = [];
-
-  if (entries) {
-    migratedEntries = entries;
-  } else if (oldCompletions) {
-    migratedEntries = oldCompletions.map((c) => ({
-      habitId: c.habitId,
-      date: c.date,
-      occurred: c.occurred ?? c.completed ?? false,
-      note: c.note,
-    }));
-  }
-
-  const goals = (data.goals as Goal[] | undefined) || [];
-
-  return {
-    habits: migratedHabits,
-    entries: migratedEntries,
-    goals,
-    lastSyncedAt: (data.lastSyncedAt as string) || new Date().toISOString(),
   };
 }

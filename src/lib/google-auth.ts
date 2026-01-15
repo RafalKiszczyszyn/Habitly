@@ -26,36 +26,24 @@ export function initializeGoogleAuth(): Promise<void> {
   });
 }
 
-export function getAccessToken(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!tokenClient) {
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: SCOPES,
-        callback: (response) => {
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve(response.access_token);
-          }
-        },
-      });
-    }
-
-    tokenClient.requestAccessToken({ prompt: '' });
-  });
-}
 
 export async function signIn(): Promise<{ accessToken: string; user: User }> {
   const accessToken = await new Promise<string>((resolve, reject) => {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
-      callback: (response) => {
+      callback: (response: google.accounts.oauth2.TokenResponse) => {
         if (response.error) {
           reject(new Error(response.error));
         } else {
           resolve(response.access_token);
+        }
+      },
+      error_callback: (error: { type: string }) => {
+        if (error.type === 'popup_closed') {
+          reject(new Error('Sign in was cancelled'));
+        } else {
+          reject(new Error('Failed to open sign in popup'));
         }
       },
     });

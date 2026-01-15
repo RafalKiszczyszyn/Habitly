@@ -1,24 +1,23 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Card } from '../components/ui';
-import { signIn } from '../lib/google-auth';
-import { loadHabitData, getDefaultHabitData, migrateHabitData } from '../lib/google-drive';
+import { getDefaultHabitData } from '../lib/google-drive';
 import { useAuthStore } from '../stores/auth-store';
 import { useHabitStore } from '../stores/habit-store';
+import { useSignIn } from '../hooks/useSignIn';
+import { useState } from 'react';
 
 interface LoginPageProps {
   isFirstTime?: boolean;
 }
 
 export function LoginPage({ isFirstTime = false }: LoginPageProps) {
+  const navigate = useNavigate();
+  const { setLocalUser } = useAuthStore();
+  const { setHabitData } = useHabitStore();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user: previousUser, setAuth, setLocalUser } = useAuthStore();
-  const { setHabitData, clearHabitData, setLoading } = useHabitStore();
-  const sessionExpired = searchParams.get('expired') === 'true';
+  const { signIn } = useSignIn();
 
   const handleContinueLocally = () => {
     setLocalUser();
@@ -29,50 +28,16 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
   const handleSignIn = async () => {
     setIsLoading(true);
     setError(null);
-
+    setLoadingStatus('Signing in...');
     try {
-      setLoadingStatus('Signing in...');
-      const { accessToken, user } = await signIn();
-
-      // Check if user changed (or no previous user)
-      const userChanged = !previousUser || previousUser.id !== user.id;
-
-      setAuth(user, accessToken);
-
-      // Load data from cloud if user changed or no previous user
-      if (userChanged) {
-        // Clear local data first if switching users
-        if (previousUser && previousUser.id !== user.id) {
-          clearHabitData();
-        }
-
-        setLoading(true);
-        navigate('/');
-
-        try {
-          const cloudData = await loadHabitData(accessToken);
-          if (cloudData) {
-            setHabitData(migrateHabitData(cloudData));
-          } else {
-            setHabitData(getDefaultHabitData());
-          }
-        } catch (loadErr) {
-          console.error('Failed to load cloud data:', loadErr);
-          // Use default data if cloud load fails
-          setHabitData(getDefaultHabitData());
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
+      await signIn();
+    } catch(err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
       setIsLoading(false);
       setLoadingStatus('');
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center p-4">
@@ -87,12 +52,6 @@ export function LoginPage({ isFirstTime = false }: LoginPageProps) {
               : 'Track your habits, build better routines'}
           </p>
         </div>
-
-        {sessionExpired && (
-          <div className="mb-4 p-3 bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-lg text-sm">
-            Your session has expired. Please sign in again.
-          </div>
-        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg text-sm">
