@@ -38,7 +38,11 @@ export function useSync({ onMessage } : SyncProps) {
         setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
         onMessage('Uploaded local data to cloud', 'success');
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof SyncConflictError) {
+        setSyncConflict({ cloud: error.cloudData, local: error.localData });
+        return;
+      }
       onMessage('Failed to connect to cloud', 'error');
     } finally {
       setIsSyncing(false);
