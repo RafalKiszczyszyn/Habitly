@@ -145,6 +145,6 @@ export function getDefaultHabitData(): HabitData {
     habits: [],
     entries: [],
     goals: [],
-    lastSyncedAt: new Date().toISOString(),
+    lastSyncedAt: new Date(0).toISOString(),
   };
 }

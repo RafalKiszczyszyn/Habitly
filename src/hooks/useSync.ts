@@ -33,17 +33,10 @@ export function useSync({ onMessage } : SyncProps) {
       const result = await googleSignIn();
       if (result) {
         setAuth(result.user, result.accessToken);
-
-        const cloudData = await loadHabitData(result.accessToken);
         const localData = getHabitData();
-
-        if (cloudData) {
-          setSyncConflict({ cloud: cloudData, local: localData });
-        } else {
-          const newSyncedAt = await saveHabitData(result.accessToken, localData);
-          setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
-          onMessage('Uploaded local data to cloud', 'success');
-        }
+        const newSyncedAt = await saveHabitData(result.accessToken, localData);
+        setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
+        onMessage('Uploaded local data to cloud', 'success');
       }
     } catch {
       onMessage('Failed to connect to cloud', 'error');
@@ -61,19 +54,7 @@ export function useSync({ onMessage } : SyncProps) {
     }
 
     try {
-      const cloudData = await loadHabitData(accessToken);
       const localData = getHabitData();
-
-      if (cloudData) {
-        const cloudTime = new Date(cloudData.lastSyncedAt).getTime();
-        const localTime = new Date(localData.lastSyncedAt).getTime();
-
-        if (cloudTime > localTime) {
-          setSyncConflict({ cloud: cloudData, local: localData });
-          return;
-        }
-      }
-
       const newSyncedAt = await saveHabitData(accessToken, localData);
       setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
       onMessage('Uploaded local data to cloud', 'success');
@@ -106,6 +87,8 @@ export function useSync({ onMessage } : SyncProps) {
       const localData = getHabitData();
 
       if (cloudData) {
+        // Local data may have the same sync timestamp as cloud data.
+        // However, it can still be different if the user modified local data after the last sync.
         const equal = deepCompare(localData, cloudData);
         if (equal) {
           setHabitData(cloudData);
