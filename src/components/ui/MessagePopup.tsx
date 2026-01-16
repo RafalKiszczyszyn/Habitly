@@ -1,8 +1,4 @@
-interface MessagePopupProps {
-  message: string;
-  type: 'error' | 'warning' | 'success';
-  onClose: () => void;
-}
+export type MessageType = 'error' | 'warning' | 'success';
 
 const icons = {
   error: (
@@ -40,25 +36,84 @@ const colors = {
   success: 'text-green-500',
 };
 
-export function MessagePopup({ message, type, onClose }: MessagePopupProps) {
+// export function MessagePopup({ message, type, onClose }: MessagePopupProps) {
+//   return (
+//     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+//       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 max-w-sm w-full shadow-lg">
+//         <div className="flex items-start gap-3">
+//           <div className={`flex-shrink-0 w-5 h-5 ${colors[type]}`}>
+//             {icons[type]}
+//           </div>
+//           <p className="flex-1 text-sm text-[var(--color-text)]">{message}</p>
+//           <button
+//             onClick={onClose}
+//             className="flex-shrink-0 p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors rounded-lg hover:bg-[var(--color-border)]"
+//           >
+//             <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+//               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+//             </svg>
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+interface MessagePopupProps {
+  message: string;
+  type: MessageType;
+  onClose: () => void;
+}
+
+function MessagePopup({ message, type, onClose }: MessagePopupProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 max-w-sm w-full shadow-lg">
-        <div className="flex items-start gap-3">
-          <div className={`flex-shrink-0 w-5 h-5 ${colors[type]}`}>
-            {icons[type]}
-          </div>
-          <p className="flex-1 text-sm text-[var(--color-text)]">{message}</p>
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors rounded-lg hover:bg-[var(--color-border)]"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
-          </button>
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 shadow-lg">
+      <div className="flex items-start gap-3">
+        <div className={`flex-shrink-0 w-5 h-5 ${colors[type]}`}>
+          {icons[type]}
         </div>
+
+        <p className="flex-1 text-sm text-[var(--color-text)]">
+          {message}
+        </p>
+
+        <button
+          onClick={onClose}
+          className="flex-shrink-0 p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors rounded-lg hover:bg-[var(--color-border)]"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+          </svg>
+        </button>
       </div>
+    </div>
+  );
+}
+
+export type Message = {
+  id: string;
+  message: string;
+  type: MessageType;
+};
+
+export function MessageContainer({
+  messages,
+  onClose,
+}: {
+  messages: Message[];
+  onClose: (id: string) => void;
+}) {
+  return (
+    <div className="fixed bottom-4 left-1/2 z-50 flex w-full max-w-sm -translate-x-1/2 flex-col-reverse gap-2 px-4 pointer-events-none">
+      {messages.map((msg) => (
+        <div key={msg.id} className="pointer-events-auto">
+          <MessagePopup
+            message={msg.message}
+            type={msg.type}
+            onClose={() => onClose(msg.id)}
+          />
+        </div>
+      ))}
     </div>
   );
 }

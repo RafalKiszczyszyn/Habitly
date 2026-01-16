@@ -1,3 +1,3 @@
 export { Button } from './Button';
 export { Card } from './Card';
-export { MessagePopup } from './MessagePopup';
+export { MessageContainer } from './MessagePopup';

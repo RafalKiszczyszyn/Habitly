@@ -5,8 +5,9 @@ import { useHabitStore } from '../../stores/habit-store';
 import { signOut } from '../../lib/google-auth';
 import { SyncConflictModal } from '../SyncConflictModal';
 import { SyncMenu } from './SyncMenu';
-import { MessagePopup } from '../ui';
 import { useSync } from '../../hooks/useSync';
+import { MessageContainer } from '../ui/MessagePopup';
+import { useToast } from '../../hooks/useToast';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,19 +17,18 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { user, accessToken, isLocalUser, clearAuth } = useAuthStore();
   const { clearHabitData, isLoading, setLoading, lastSyncedAt } = useHabitStore();
+  const { messages, addMessage, removeMessage } = useToast();
 
   const {
     isSyncing,
     syncConflict,
     isDownloadMode,
-    message,
-    clearMessage,
     handleConnectToCloud,
     handleSync,
     handleDownload,
     handleKeepLocal,
     handleKeepCloud,
-  } = useSync();
+  } = useSync({ onMessage: addMessage });
 
   const handleSignOut = () => {
     signOut();
@@ -85,14 +85,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
 
-      {/* Message Popup */}
-      {message && (
-        <MessagePopup
-          message={message.text}
-          type={message.type}
-          onClose={clearMessage}
-        />
-      )}
+      {/* Message Stack */}
+      <MessageContainer messages={messages} onClose={removeMessage} />
     </div>
   );
 }

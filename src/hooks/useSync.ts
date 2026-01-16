@@ -5,23 +5,25 @@ import { signIn as googleSignIn } from '../lib/google-auth';
 import { loadHabitData, saveHabitData, forceSaveHabitData, TokenExpiredError, SyncConflictError } from '../lib/google-drive';
 import { deepCompare } from '../lib/sync-utils';
 import type { HabitData } from '../types';
+import type { AddMessageFuncType } from './useToast';
 
-type Message = { text: string; type: 'error' | 'warning' | 'success' } | null;
+interface SyncProps {
+  onMessage: AddMessageFuncType;
+}
 
-export function useSync() {
+export function useSync({ onMessage } : SyncProps) {
   const { accessToken, setLocalUser, setAuth } = useAuthStore();
   const { getHabitData, setHabitData } = useHabitStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncConflict, setSyncConflict] = useState<{ cloud: HabitData; local: HabitData } | null>(null);
   const [isDownloadMode, setIsDownloadMode] = useState(false);
-  const [message, setMessage] = useState<Message>(null);
 
   const handleExpiredSession = async () => {
     setLocalUser();
-    setMessage({ 
-      text: 'Your session expired - switched to local mode. Reconnect to cloud to enable synchronization.',
-      type: 'warning'
-    });
+    onMessage(
+      'Your session expired - switched to local mode. Reconnect to cloud to enable synchronization.',
+      'warning'
+    );
     setIsSyncing(false);
   };
 
@@ -40,10 +42,11 @@ export function useSync() {
         } else {
           const newSyncedAt = await saveHabitData(result.accessToken, localData);
           setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
+          onMessage('Uploaded local data to cloud', 'success');
         }
       }
     } catch {
-      setMessage({ text: 'Failed to connect to cloud', type: 'error' });
+      onMessage('Failed to connect to cloud', 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -73,6 +76,7 @@ export function useSync() {
 
       const newSyncedAt = await saveHabitData(accessToken, localData);
       setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
+      onMessage('Uploaded local data to cloud', 'success');
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await handleExpiredSession();
@@ -82,7 +86,7 @@ export function useSync() {
         setSyncConflict({ cloud: error.cloudData, local: error.localData });
         return;
       }
-      setMessage({ text: 'Sync failed', type: 'error' });
+      onMessage('Sync failed', 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -106,18 +110,19 @@ export function useSync() {
         if (equal) {
           setHabitData(cloudData);
           setIsDownloadMode(false);
+          onMessage('Downloaded cloud data', 'success');
         } else {
           setSyncConflict({ cloud: cloudData, local: localData });
         }
       } else {
-        setMessage({ text: 'No cloud data found', type: 'warning' });
+        onMessage('No cloud data found', 'warning');
       }
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await handleExpiredSession();
         return;
       }
-      setMessage({ text: 'Download failed', type: 'error' });
+      onMessage('Download failed', 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -129,6 +134,7 @@ export function useSync() {
     if (isDownloadMode) {
       setSyncConflict(null);
       setIsDownloadMode(false);
+      onMessage('Local data was kept', 'success');
       return;
     }
 
@@ -143,12 +149,13 @@ export function useSync() {
       const newSyncedAt = await forceSaveHabitData(accessToken, syncConflict.local);
       setHabitData({ ...syncConflict.local, lastSyncedAt: newSyncedAt });
       setSyncConflict(null);
+      onMessage('Local data was kept', 'success');
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await handleExpiredSession();
         return;
       }
-      setMessage({ text: 'Failed to save data', type: 'error' });
+      onMessage('Failed to save data', 'warning');
     } finally {
       setIsSyncing(false);
     }
@@ -159,16 +166,13 @@ export function useSync() {
     setHabitData(syncConflict.cloud);
     setSyncConflict(null);
     setIsDownloadMode(false);
+    onMessage('Cloud data was kept', 'success');
   };
-
-  const clearMessage = () => setMessage(null);
 
   return {
     isSyncing,
     syncConflict,
     isDownloadMode,
-    message,
-    clearMessage,
     handleConnectToCloud,
     handleSync,
     handleDownload,
