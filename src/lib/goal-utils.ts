@@ -8,6 +8,7 @@ const PERIOD_DAYS: Record<GoalPeriod, number> = {
 
 export interface CurrentPeriodProgress {
   value: number;
+  daysUntilEnd: number;
   targetValue: number;
   periodLabel: string;
 }
@@ -24,6 +25,7 @@ export interface GoalCompletionResult {
   // Whether goal has started
   hasStarted: boolean;
   endDate: Date;
+  periodStatuses: ('success' | 'failure' | 'pending')[];
   status: 'success' | 'partial_success' | 'failure' | null,
   state: 'future' | 'active' | 'past'
 }
@@ -110,6 +112,7 @@ export function calculateGoalCompletion(
       currentPeriod: null,
       hasStarted: false,
       endDate,
+      periodStatuses: [],
       status: null,
       state
     };
@@ -145,6 +148,7 @@ export function calculateGoalCompletion(
       currentPeriod: null,
       hasStarted: true,
       endDate,
+      periodStatuses: [],
       status: state === 'past' ? (success ? 'success' : 'failure') : null,
       state,
     };
@@ -153,6 +157,7 @@ export function calculateGoalCompletion(
   let metCount = 0;
   let currentPeriod: CurrentPeriodProgress | null = null;
 
+  let periodStatuses: ('success' | 'failure' | 'pending')[] = [];
   for (const period of periods) {
     const periodStartStr = formatDateString(period.start);
     const periodEndStr = formatDateString(period.end);
@@ -171,11 +176,27 @@ export function calculateGoalCompletion(
     }
 
     if (period.isCurrent) {
+      let targetMet: boolean;
+      if (habit.type === 'negative') {
+        targetMet = value <= goal.targetValue;
+      } else {
+        targetMet = value >= goal.targetValue;
+      }
+
+      if (targetMet) {
+        periodStatuses.push('success');
+        metCount++;
+      } else {
+        periodStatuses.push(targetMet ? 'success' : 'failure');
+      }
+      
       if (habit.type === 'negative') {
         value = Math.max(goal.targetValue - value, 0)
       }
+
       currentPeriod = {
         value,
+        daysUntilEnd: period.end.getDate() - today.getDate() + 1,
         targetValue: goal.targetValue,
         periodLabel: goal.period,
       };
@@ -189,8 +210,13 @@ export function calculateGoalCompletion(
       }
 
       if (targetMet) {
+        periodStatuses.push('success');
         metCount++;
+      } else {
+        periodStatuses.push(targetMet ? 'success' : 'failure');
       }
+    } else {
+      periodStatuses.push('pending');
     }
   }
 
@@ -208,6 +234,7 @@ export function calculateGoalCompletion(
     currentPeriod,
     hasStarted: true,
     endDate,
+    periodStatuses,
     status: state === 'past' ? status : null,
     state
   };

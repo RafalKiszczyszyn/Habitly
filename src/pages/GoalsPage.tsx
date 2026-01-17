@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Button, Card } from '../components/ui';
+import { Button, Card, MultiColorProgressBar } from '../components/ui';
 import { useHabitStore } from '../stores/habit-store';
 import { formatDate } from '../lib/calendar';
 import { calculateGoalCompletion, getPeriodLabel, type GoalCompletionResult } from '../lib/goal-utils';
@@ -233,6 +233,15 @@ function GoalCard({ goalWithCompletionResult, habits, onDelete }: GoalCardProps)
     ? `${limitWord} ${goal.targetValue} ${targetTypeLabel} total`
     : `${limitWord} ${goal.targetValue} ${targetTypeLabel} per ${goal.period}`;
 
+  // Map status to CSS variable
+  const statusColors = {
+    success: 'var(--color-green-500)',
+    failure: 'var(--color-red-500)',
+    pending: 'var(--color-gray-300)',
+  };
+
+  const progressBarColors = completion.periodStatuses.map(status => statusColors[status]);
+
   return (
     <Card className="space-y-3">
       <div className="flex items-start justify-between">
@@ -362,7 +371,7 @@ function GoalCard({ goalWithCompletionResult, habits, onDelete }: GoalCardProps)
               <div className="mb-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[var(--color-text-muted)]">
-                    This {completion.currentPeriod.periodLabel}
+                    This {completion.currentPeriod.periodLabel} ({completion.currentPeriod.daysUntilEnd > 1 ? `${completion.currentPeriod.daysUntilEnd} days left` : 'ends today'})
                   </span>
                   <span className="text-sm font-medium text-[var(--color-text)]">
                     {completion.currentPeriod.value}/{completion.currentPeriod.targetValue} {targetTypeLabel}
@@ -398,18 +407,7 @@ function GoalCard({ goalWithCompletionResult, habits, onDelete }: GoalCardProps)
                     {completion.metCount}/{completion.totalPeriods} {periodLabel}
                   </span>
                 </div>
-                <div className="mt-2 h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      completion.metCount === completion.totalPeriods
-                        ? 'bg-green-500'
-                        : completion.metCount > 0
-                        ? 'bg-[var(--color-primary)]'
-                        : 'bg-gray-400'
-                    }`}
-                    style={{ width: `${(completion.metCount / completion.totalPeriods) * 100}%` }}
-                  />
-                </div>
+                <MultiColorProgressBar colors={progressBarColors}/>
               </div>
             )}
 
