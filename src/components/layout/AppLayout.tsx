@@ -28,6 +28,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     handleDownload,
     handleKeepLocal,
     handleKeepCloud,
+    handleCancelSync,
   } = useSync({ onMessage: addMessage });
 
   const handleSignOut = () => {
@@ -81,6 +82,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           localData={syncConflict.local}
           onKeepLocal={handleKeepLocal}
           onKeepCloud={handleKeepCloud}
+          onCancel={handleCancelSync}
           primaryAction={isDownloadMode ? 'cloud' : 'local'}
         />
       )}

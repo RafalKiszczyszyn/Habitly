@@ -1,16 +1,39 @@
 import { Button, Card } from './ui';
 import type { HabitData } from '../types';
 
+type VersionButtonProps = { data: HabitData; label: string; onClick: () => void; isPrimary: boolean };
+
+function VersionButton({data, label, onClick, isPrimary}: VersionButtonProps) {
+  const baseClasses = 'p-3 rounded-lg border border-[var(--color-border)] cursor-pointer';
+  const primaryButtonClasses = 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] focus:ring-[var(--color-primary)]';
+  const primaryTextClasses = 'text-white/80';
+  const secondaryButtonClasses = 'bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-border)]';
+  const secondaryTextClasses = 'text-[var(--color-text-muted)]';
+
+  return (
+    <div
+      onClick={onClick}
+      className={`${baseClasses} ${isPrimary ? primaryButtonClasses : secondaryButtonClasses}`}
+    >
+      <div className="font-medium text-sm">{label}</div>
+      <div className={`text-xs mt-1 ${isPrimary ? primaryTextClasses : secondaryTextClasses}`}>
+        Last synced: {new Date(data.lastSyncedAt).toLocaleString()}
+      </div>
+      <div className={`text-xs ${isPrimary ? primaryTextClasses : secondaryTextClasses}`}>
+        {data.habits.length} habits, {data.entries.length} entries, {data.goals.length} goals
+      </div>
+    </div>
+  );
+
+}
+
 interface SyncConflictModalProps {
   cloudData: HabitData;
   localData: HabitData;
   onKeepLocal: () => void;
   onKeepCloud: () => void;
+  onCancel: () => void;
   primaryAction?: 'local' | 'cloud';
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString();
 }
 
 export function SyncConflictModal({
@@ -18,6 +41,7 @@ export function SyncConflictModal({
   localData,
   onKeepLocal,
   onKeepCloud,
+  onCancel,
   primaryAction = 'local',
 }: SyncConflictModalProps) {
   return (
@@ -31,41 +55,17 @@ export function SyncConflictModal({
         </p>
 
         <div className="space-y-3 mb-4">
-          <div className="p-3 bg-[var(--color-background)] rounded-lg border border-[var(--color-border)]">
-            <div className="font-medium text-[var(--color-text)] text-sm">Cloud Data</div>
-            <div className="text-xs text-[var(--color-text-muted)] mt-1">
-              Last synced: {formatDate(cloudData.lastSyncedAt)}
-            </div>
-            <div className="text-xs text-[var(--color-text-muted)]">
-              {cloudData.habits.length} habits, {cloudData.entries.length} entries
-            </div>
-          </div>
-
-          <div className="p-3 bg-[var(--color-background)] rounded-lg border border-[var(--color-border)]">
-            <div className="font-medium text-[var(--color-text)] text-sm">Local Data</div>
-            <div className="text-xs text-[var(--color-text-muted)] mt-1">
-              Last synced: {formatDate(localData.lastSyncedAt)}
-            </div>
-            <div className="text-xs text-[var(--color-text-muted)]">
-              {localData.habits.length} habits, {localData.entries.length} entries
-            </div>
-          </div>
+          <VersionButton data={cloudData} label="Cloud Data" onClick={onKeepCloud} isPrimary={primaryAction === 'cloud'} />
+          <VersionButton data={localData} label="Local Data" onClick={onKeepLocal} isPrimary={primaryAction === 'local'} />
         </div>
 
         <div className="flex gap-2">
           <Button
-            variant={primaryAction === 'cloud' ? undefined : 'secondary'}
+            variant={'secondary'}
             className="flex-1"
-            onClick={onKeepCloud}
+            onClick={onCancel}
           >
-            Keep Cloud
-          </Button>
-          <Button
-            variant={primaryAction === 'local' ? undefined : 'secondary'}
-            className="flex-1"
-            onClick={onKeepLocal}
-          >
-            Keep Local
+            Cancel
           </Button>
         </div>
       </Card>

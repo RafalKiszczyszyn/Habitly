@@ -156,6 +156,12 @@ export function useSync({ onMessage } : SyncProps) {
     onMessage('Cloud data was kept', 'success');
   };
 
+  const handleCancelSync = () => {
+    setSyncConflict(null);
+    setIsDownloadMode(false);
+    onMessage('Sync cancelled', 'warning');
+  }
+
   return {
     isSyncing,
     syncConflict,
@@ -165,5 +171,6 @@ export function useSync({ onMessage } : SyncProps) {
     handleDownload,
     handleKeepLocal,
     handleKeepCloud,
+    handleCancelSync,
   };
 }

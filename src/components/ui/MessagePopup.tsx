@@ -104,7 +104,7 @@ export function MessageContainer({
   onClose: (id: string) => void;
 }) {
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 flex w-full max-w-sm -translate-x-1/2 flex-col-reverse gap-2 px-4 pointer-events-none">
+    <div className="fixed top-16 left-1/2 z-50 flex w-full max-w-sm -translate-x-1/2 flex-col-reverse gap-2 px-4 pointer-events-none">
       {messages.map((msg) => (
         <div key={msg.id} className="pointer-events-auto">
           <MessagePopup
