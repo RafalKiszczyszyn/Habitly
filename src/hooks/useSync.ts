@@ -6,9 +6,21 @@ import { loadHabitData, saveHabitData, forceSaveHabitData, TokenExpiredError, Sy
 import { deepCompare } from '../lib/sync-utils';
 import type { HabitData } from '../types';
 import type { AddMessageFuncType } from './useToast';
+import type { MessageDetails } from '../components/ui/MessagePopup';
 
 interface SyncProps {
   onMessage: AddMessageFuncType;
+}
+
+const parseError = (error: any): MessageDetails => {
+  if (error instanceof Error) {
+    return [
+      { sectionName: 'Error message', sectionLines: [error.message] },
+      { sectionName: 'Error stacktrace', sectionLines: error.stack?.split('\n') || [] }
+    ];
+  }
+
+  return [];
 }
 
 export function useSync({ onMessage } : SyncProps) {
@@ -22,6 +34,7 @@ export function useSync({ onMessage } : SyncProps) {
     setLocalUser();
     onMessage(
       'Your session expired - switched to local mode. Reconnect to cloud to enable synchronization.',
+      [],
       'warning'
     );
     setIsSyncing(false);
@@ -36,14 +49,14 @@ export function useSync({ onMessage } : SyncProps) {
         const localData = getHabitData();
         const newSyncedAt = await saveHabitData(result.accessToken, localData);
         setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
-        onMessage('Uploaded local data to cloud', 'success');
+        onMessage('Uploaded local data to cloud', [], 'success');
       }
     } catch (error) {
       if (error instanceof SyncConflictError) {
         setSyncConflict({ cloud: error.cloudData, local: error.localData });
         return;
       }
-      onMessage('Failed to connect to cloud', 'error');
+      onMessage('Failed to connect to cloud', parseError(error), 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -61,7 +74,7 @@ export function useSync({ onMessage } : SyncProps) {
       const localData = getHabitData();
       const newSyncedAt = await saveHabitData(accessToken, localData);
       setHabitData({ ...localData, lastSyncedAt: newSyncedAt });
-      onMessage('Uploaded local data to cloud', 'success');
+      onMessage('Uploaded local data to cloud', [], 'success');
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await handleExpiredSession();
@@ -71,7 +84,7 @@ export function useSync({ onMessage } : SyncProps) {
         setSyncConflict({ cloud: error.cloudData, local: error.localData });
         return;
       }
-      onMessage('Sync failed', 'error');
+      onMessage('Sync failed', parseError(error), 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -97,19 +110,19 @@ export function useSync({ onMessage } : SyncProps) {
         if (equal) {
           setHabitData(cloudData);
           setIsDownloadMode(false);
-          onMessage('Downloaded cloud data', 'success');
+          onMessage('Downloaded cloud data', [], 'success');
         } else {
           setSyncConflict({ cloud: cloudData, local: localData });
         }
       } else {
-        onMessage('No cloud data found', 'warning');
+        onMessage('No cloud data found', [], 'warning');
       }
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await handleExpiredSession();
         return;
       }
-      onMessage('Download failed', 'error');
+      onMessage('Download failed', parseError(error), 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -121,7 +134,7 @@ export function useSync({ onMessage } : SyncProps) {
     if (isDownloadMode) {
       setSyncConflict(null);
       setIsDownloadMode(false);
-      onMessage('Local data was kept', 'success');
+      onMessage('Local data was kept', [], 'success');
       return;
     }
 
@@ -136,13 +149,13 @@ export function useSync({ onMessage } : SyncProps) {
       const newSyncedAt = await forceSaveHabitData(accessToken, syncConflict.local);
       setHabitData({ ...syncConflict.local, lastSyncedAt: newSyncedAt });
       setSyncConflict(null);
-      onMessage('Local data was kept', 'success');
+      onMessage('Local data was kept', [], 'success');
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await handleExpiredSession();
         return;
       }
-      onMessage('Failed to save data', 'warning');
+      onMessage('Failed to save data', [], 'warning');
     } finally {
       setIsSyncing(false);
     }
@@ -153,13 +166,13 @@ export function useSync({ onMessage } : SyncProps) {
     setHabitData(syncConflict.cloud);
     setSyncConflict(null);
     setIsDownloadMode(false);
-    onMessage('Cloud data was kept', 'success');
+    onMessage('Cloud data was kept', [], 'success');
   };
 
   const handleCancelSync = () => {
     setSyncConflict(null);
     setIsDownloadMode(false);
-    onMessage('Sync cancelled', 'warning');
+    onMessage('Sync cancelled', [], 'warning');
   }
 
   return {

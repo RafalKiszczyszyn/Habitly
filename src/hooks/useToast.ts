@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from "react";
-import type { Message, MessageType } from "../components/ui/MessagePopup";
+import type { Message, MessageDetails, MessageType } from "../components/ui/MessagePopup";
 
 const AUTO_DISMISS_MS = 15_000;
 
-export type AddMessageFuncType = (message: string, type: MessageType) => string;
+export type AddMessageFuncType = (message: string, details: MessageDetails, type: MessageType) => string;
 
 export function useToast() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -20,14 +20,16 @@ export function useToast() {
   }, []);
 
   const addMessage = useCallback(
-    (message: string, type: MessageType) => {
+    (message: string, details: MessageDetails, type: MessageType) => {
       const id = crypto.randomUUID();
 
       setMessages((prev) => [
         ...prev,
-        { id, message, type },
+        { id, message, details, type },
       ]);
 
+      if (type === 'error') return id;
+ 
       const timer = window.setTimeout(() => {
         removeMessage(id);
       }, AUTO_DISMISS_MS);

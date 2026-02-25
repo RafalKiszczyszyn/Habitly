@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export type MessageType = 'error' | 'warning' | 'success';
 
 const icons = {
@@ -36,46 +38,47 @@ const colors = {
   success: 'text-green-500',
 };
 
-// export function MessagePopup({ message, type, onClose }: MessagePopupProps) {
-//   return (
-//     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-//       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 max-w-sm w-full shadow-lg">
-//         <div className="flex items-start gap-3">
-//           <div className={`flex-shrink-0 w-5 h-5 ${colors[type]}`}>
-//             {icons[type]}
-//           </div>
-//           <p className="flex-1 text-sm text-[var(--color-text)]">{message}</p>
-//           <button
-//             onClick={onClose}
-//             className="flex-shrink-0 p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors rounded-lg hover:bg-[var(--color-border)]"
-//           >
-//             <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-//               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-//             </svg>
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
 interface MessagePopupProps {
-  message: string;
-  type: MessageType;
+  message: Message
   onClose: () => void;
 }
 
-function MessagePopup({ message, type, onClose }: MessagePopupProps) {
+function MessagePopup({ message, onClose }: MessagePopupProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const hasDetails = message.details.length > 0;
+
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 shadow-lg">
       <div className="flex items-start gap-3">
-        <div className={`flex-shrink-0 w-5 h-5 ${colors[type]}`}>
-          {icons[type]}
+        <div className={`flex-shrink-0 w-5 h-5 ${colors[message.type]}`}>
+          {icons[message.type]}
         </div>
 
         <p className="flex-1 text-sm text-[var(--color-text)]">
-          {message}
+          {message.message}
         </p>
+
+        {hasDetails && (
+          <button
+              onClick={() => setExpanded((prev) => !prev)}
+              className="flex-shrink-0 p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors rounded-lg hover:bg-[var(--color-border)]"
+            >
+            <svg
+              className={`w-5 h-5 transform transition-transform ${
+                expanded ? 'rotate-180' : ''
+              }`}
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.23 8.27a.75.75 0 01.02-1.06z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        )}
 
         <button
           onClick={onClose}
@@ -86,13 +89,32 @@ function MessagePopup({ message, type, onClose }: MessagePopupProps) {
           </svg>
         </button>
       </div>
+      {expanded && message.details.map((section) => (
+          <div className="mt-3 space-y-3">
+            <div>
+              <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+                {section.sectionName}
+              </p>
+
+              <pre className="bg-[var(--color-border)] rounded-lg p-3 text-xs overflow-x-auto">
+                <code>
+                  {section.sectionLines.join('\n')}
+                </code>
+              </pre>
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 }
 
+export type MessageDetails = { sectionName: string; sectionLines: string[] }[]
+
 export type Message = {
   id: string;
   message: string;
+  details: MessageDetails;
   type: MessageType;
 };
 
@@ -108,8 +130,7 @@ export function MessageContainer({
       {messages.map((msg) => (
         <div key={msg.id} className="pointer-events-auto">
           <MessagePopup
-            message={msg.message}
-            type={msg.type}
+            message={msg}
             onClose={() => onClose(msg.id)}
           />
         </div>
